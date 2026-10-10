@@ -1,11 +1,26 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+
+/** Vite 8 beendet unter Windows den Prozess nach dem Build nicht von selbst; auf Linux (Docker, CI) ist das nicht nötig. */
+function exitAfterBuildOnWindows(): Plugin {
+  return {
+    name: 'exit-after-build-on-windows',
+    apply: 'build',
+    closeBundle: {
+      order: 'post',
+      handler() {
+        if (process.platform === 'win32') setTimeout(() => process.exit(0), 3000).unref();
+      },
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    exitAfterBuildOnWindows(),
     ...(process.env.VITEST ? [] : [VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
