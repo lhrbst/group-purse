@@ -9,6 +9,14 @@ import de.grouppurse.repo.MitgliedschaftRepository;
 import de.grouppurse.repo.WohngruppeRepository;
 import de.grouppurse.security.AppPrincipal;
 import de.grouppurse.security.CurrentUser;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,11 +32,14 @@ public class AuthService {
     private final MitgliedschaftRepository members;
     private final WohngruppeRepository gruppen;
     private final CurrentUser user;
+    private final SecurityContextRepository contextRepository;
 
-    public AuthService(MitgliedschaftRepository members, WohngruppeRepository gruppen, CurrentUser user) {
+    public AuthService(MitgliedschaftRepository members, WohngruppeRepository gruppen, CurrentUser user,
+                       SecurityContextRepository contextRepository) {
         this.members = members;
         this.gruppen = gruppen;
         this.user = user;
+        this.contextRepository = contextRepository;
     }
 
     public static String normalizeEmail(String email) {
@@ -37,6 +48,22 @@ public class AuthService {
 
     public static AppPrincipal principalOf(Person p) {
         return new AppPrincipal(p.id, p.name, p.email, p.istAdmin);
+    }
+
+    /** Legt die Session an (neue Session-ID gegen Session-Fixation) und setzt ggf. die Standardgruppe. */
+    public void startSession(Person p, HttpServletRequest req, HttpServletResponse res) {
+        SecurityContext ctx = SecurityContextHolder.createEmptyContext();
+        String[] roles = p.istAdmin ? new String[]{"ROLE_USER", "ROLE_ADMIN"} : new String[]{"ROLE_USER"};
+        ctx.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(principalOf(p), null,
+                AuthorityUtils.createAuthorityList(roles)));
+        SecurityContextHolder.setContext(ctx);
+        if (req.getSession(false) != null) {
+            req.changeSessionId();
+        }
+        HttpSession session = req.getSession(true);
+        session.removeAttribute(CurrentUser.ACTIVE_GROUP);
+        defaultGroup(p).ifPresent(g -> session.setAttribute(CurrentUser.ACTIVE_GROUP, g));
+        contextRepository.saveContext(ctx, req, res);
     }
 
     /** Gruppe, die nach dem Login automatisch aktiv wird: genau eine aktive Mitgliedschaft. */
@@ -62,7 +89,7 @@ public class AuthService {
         List<Mitgliedschaft> ms = members.findByPersonId(p.personId());
         Map<UUID, String> names = gruppen.findAllById(ms.stream().map(m -> m.wohngruppeId).toList()).stream()
                 .collect(Collectors.toMap(g -> g.id, g -> g.name));
-        List<MitgliedschaftDto> dtos = ms.stream()
+        List<AuthDtos.MitgliedschaftDto> dtos = ms.stream()
                 .map(m -> new MitgliedschaftDto(m.id, m.wohngruppeId, names.get(m.wohngruppeId), m.rolle, m.status))
                 .toList();
         return new MeDto(p.personId(), p.name(), p.email(), p.istAdmin(), dtos,

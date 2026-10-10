@@ -7,19 +7,14 @@ import de.grouppurse.auth.AuthDtos.PasswordResetConfirm;
 import de.grouppurse.auth.AuthDtos.PasswordResetRequest;
 import de.grouppurse.domain.Person;
 import de.grouppurse.repo.PersonRepository;
-import de.grouppurse.security.AppPrincipal;
 import de.grouppurse.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,19 +31,19 @@ public class AuthController {
 
     private final PersonRepository people;
     private final PasswordEncoder encoder;
-    private final SecurityContextRepository contextRepository;
     private final LoginRateLimiter limiter;
     private final AuthService auth;
     private final PasswordResetService resets;
+    private final RegistrationService registration;
 
-    public AuthController(PersonRepository people, PasswordEncoder encoder, SecurityContextRepository contextRepository,
-                          LoginRateLimiter limiter, AuthService auth, PasswordResetService resets) {
+    public AuthController(PersonRepository people, PasswordEncoder encoder, LoginRateLimiter limiter,
+                          AuthService auth, PasswordResetService resets, RegistrationService registration) {
         this.people = people;
         this.encoder = encoder;
-        this.contextRepository = contextRepository;
         this.limiter = limiter;
         this.auth = auth;
         this.resets = resets;
+        this.registration = registration;
     }
 
     @PostMapping("/auth/login")
@@ -64,25 +59,16 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "E-Mail oder Passwort falsch");
         }
         limiter.reset(email);
-        startSession(p, req, res);
+        auth.startSession(p, req, res);
         return auth.me();
     }
 
-    /** Legt die Session an (neue Session-ID gegen Session-Fixation) und setzt ggf. die Standardgruppe. */
-    public void startSession(Person p, HttpServletRequest req, HttpServletResponse res) {
-        AppPrincipal principal = AuthService.principalOf(p);
-        SecurityContext ctx = SecurityContextHolder.createEmptyContext();
-        String[] roles = p.istAdmin ? new String[]{"ROLE_USER", "ROLE_ADMIN"} : new String[]{"ROLE_USER"};
-        ctx.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(principal, null,
-                AuthorityUtils.createAuthorityList(roles)));
-        SecurityContextHolder.setContext(ctx);
-        if (req.getSession(false) != null) {
-            req.changeSessionId();
-        }
-        HttpSession session = req.getSession(true);
-        session.removeAttribute(CurrentUser.ACTIVE_GROUP);
-        auth.defaultGroup(p).ifPresent(g -> session.setAttribute(CurrentUser.ACTIVE_GROUP, g));
-        contextRepository.saveContext(ctx, req, res);
+    @PostMapping("/auth/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MeDto register(@Valid @RequestBody RegisterRequest r, HttpServletRequest req, HttpServletResponse res) {
+        Person p = registration.register(r);
+        auth.startSession(p, req, res);
+        return auth.me();
     }
 
     @PostMapping("/auth/logout")

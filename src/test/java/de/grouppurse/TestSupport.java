@@ -61,9 +61,13 @@ public class TestSupport {
     }
 
     public MockHttpSession login(String email) throws Exception {
+        return login(email, PASSWORD);
+    }
+
+    public MockHttpSession login(String email, String password) throws Exception {
         return (MockHttpSession) mvc.perform(post("/api/auth/login").with(csrf())
                         .contentType("application/json")
-                        .content("{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isOk())
                 .andReturn().getRequest().getSession();
     }
