@@ -2,7 +2,7 @@ import { Alert, Stack, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useExpenseGet, useExpenseResubmit } from '../../api/generated/expense-controller/expense-controller';
-import { ExpenseForm } from '../../components/ExpenseForm';
+import { ExpenseForm, newPosition } from '../../components/ExpenseForm';
 import { LoadError, Loading } from '../../components/Loading';
 import { notifySuccess } from '../../lib/errors';
 
@@ -21,6 +21,8 @@ export function ExpenseEditPage() {
     return <Alert color="blue">Diese Ausgabe kann nicht mehr geändert werden (Status: {b.status}).</Alert>;
   }
 
+  const positions = (b.positionen ?? []).map((p) => newPosition(p.kategorieId ?? '', (p.betrag ?? 0).toFixed(2).replace('.', ',')));
+
   return (
     <Stack maw={560}>
       <Title order={2}>Ausgabe korrigieren</Title>
@@ -34,9 +36,8 @@ export function ExpenseEditPage() {
         existingId={b.id}
         existingPhotos={b.belegAnzahl ?? 0}
         initial={{
-          betrag: String(Math.abs(b.betrag ?? 0)).replace('.', ','),
           datum: b.datum,
-          kategorieId: b.kategorieId ?? '',
+          positionen: positions.length > 0 ? positions : undefined,
           haendler: b.haendler ?? '',
           zweck: b.zweck ?? '',
           bewohnerKuerzel: b.bewohnerKuerzel ?? '',

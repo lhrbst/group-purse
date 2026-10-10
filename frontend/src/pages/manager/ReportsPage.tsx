@@ -6,6 +6,7 @@ import { useCategoryList } from '../../api/generated/category-controller/categor
 import { useMemberList } from '../../api/generated/member-controller/member-controller';
 import { useReportBalanceHistory, useReportByCategory, useReportIncomeVsExpense } from '../../api/generated/report-controller/report-controller';
 import { LoadError, Loading } from '../../components/Loading';
+import { categoryLabel } from '../../lib/categories';
 import { incomeExpenseData, pivotByMonth } from '../../lib/chartData';
 import { currentMonth, formatDate, formatEuro, shiftMonth, todayIso } from '../../lib/format';
 
@@ -16,6 +17,7 @@ export function ReportsPage() {
   const [kategorie, setKategorie] = useState<string | null>(null);
   const [bewohner, setBewohner] = useState('');
   const [konto, setKonto] = useState('BARKASSE');
+  const [ebene, setEbene] = useState('UNTER');
 
   const range = { ...(von ? { von } : {}), ...(bis ? { bis } : {}) };
   const byCategory = useReportByCategory({
@@ -23,11 +25,13 @@ export function ReportsPage() {
     ...(person ? { person } : {}),
     ...(kategorie ? { kategorie } : {}),
     ...(bewohner.trim() ? { bewohner: bewohner.trim() } : {}),
+    ebene: ebene as 'UNTER',
   });
   const income = useReportIncomeVsExpense(range);
   const history = useReportBalanceHistory({ ...range, konto: konto as 'BARKASSE' });
   const members = useMemberList();
   const categories = useCategoryList({ alle: true });
+  const allCategories = categories.data?.status === 200 ? categories.data.data : [];
 
   const pivot = byCategory.data?.status === 200 ? pivotByMonth(byCategory.data.data) : null;
 
@@ -49,7 +53,7 @@ export function ReportsPage() {
           label="Kategorie"
           clearable
           placeholder="Alle"
-          data={categories.data?.status === 200 ? categories.data.data.map((c) => ({ value: c.id!, label: c.name ?? '' })) : []}
+          data={allCategories.map((c) => ({ value: c.id!, label: categoryLabel(allCategories, c.id) }))}
           value={kategorie}
           onChange={setKategorie}
         />
@@ -57,7 +61,14 @@ export function ReportsPage() {
       </SimpleGrid>
 
       <Card withBorder>
-        <Title order={4} mb="sm">Ausgaben nach Kategorie und Monat</Title>
+        <Group justify="space-between" mb="sm">
+          <Title order={4}>Ausgaben nach Kategorie und Monat</Title>
+          <SegmentedControl
+            value={ebene}
+            onChange={setEbene}
+            data={[{ value: 'UNTER', label: 'Unterkategorien' }, { value: 'HAUPT', label: 'Hauptkategorien' }]}
+          />
+        </Group>
         {byCategory.isLoading ? (
           <Loading />
         ) : byCategory.isError ? (

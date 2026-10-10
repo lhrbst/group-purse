@@ -13,6 +13,7 @@ import de.grouppurse.domain.Person;
 import de.grouppurse.domain.Rolle;
 import de.grouppurse.domain.Wohngruppe;
 import de.grouppurse.expense.ExpenseDtos.ExpenseInput;
+import de.grouppurse.expense.ExpenseDtos.PositionInput;
 import de.grouppurse.expense.ExpenseService;
 import de.grouppurse.ledger.BalanceService;
 import de.grouppurse.ledger.LedgerService;
@@ -53,7 +54,7 @@ class ReportServiceTest extends AbstractIntegrationTest {
 
     Buchung spend(Person who, String amount, String date, UUID cat, String bewohner) {
         byte[] jpg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0, 0};
-        return t.as(who, g, () -> expenses.submit(new ExpenseInput(bd(amount), LocalDate.parse(date), cat, null, null, bewohner, null),
+        return t.as(who, g, () -> expenses.submit(ExpenseInput.single(bd(amount), LocalDate.parse(date), cat, null, null, bewohner, null),
                 List.of(new MockMultipartFile("photos", "b.jpg", "image/jpeg", jpg))));
     }
 
@@ -65,7 +66,7 @@ class ReportServiceTest extends AbstractIntegrationTest {
         t.member(kv, g, Rolle.KASSENVERWALTER, MitgliedStatus.AKTIV);
         t.member(pk, g, Rolle.PFLEGEKRAFT, MitgliedStatus.AKTIV);
         t.as(kv, g, () -> {
-            lebensmittel = categories.visible().stream().filter(c -> c.name().equals("Lebensmittel")).findFirst().orElseThrow().id();
+            lebensmittel = categories.visible().stream().filter(c -> c.name().equals("Obst und Gemüse")).findFirst().orElseThrow().id();
             haushalt = categories.visible().stream().filter(c -> c.name().equals("Haushalt")).findFirst().orElseThrow().id();
             ledger.anfangsbestand(Konto.BARKASSE, bd("300.00"), LocalDate.of(2026, 1, 1));
             ledger.anfangsbestand(Konto.VEREINSKONTO, bd("1000.00"), LocalDate.of(2026, 1, 1));
@@ -85,7 +86,7 @@ class ReportServiceTest extends AbstractIntegrationTest {
         assertThat(rows).hasSize(2);
         assertThat(rows).anySatisfy(r -> {
             assertThat(r.monat()).isEqualTo("2026-01");
-            assertThat(r.kategorie()).isEqualTo("Lebensmittel");
+            assertThat(r.kategorie()).isEqualTo("Obst und Gemüse");
             assertThat(r.summe()).isEqualByComparingTo("20.00");
         });
         assertThat(rows).anySatisfy(r -> {
@@ -153,5 +154,40 @@ class ReportServiceTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/reports/expenses-by-category-month").session(pks)).andExpect(status().isForbidden());
         mvc.perform(get("/api/reports/income-vs-expense").session(pks)).andExpect(status().isForbidden());
         mvc.perform(get("/api/reports/balance-history").session(pks)).andExpect(status().isForbidden());
+    }
+
+
+    @Test
+    void canGroupByMainCategoryAndFilterByIt() {
+        UUID main = t.as(kv, g, () -> categories.visible().stream().filter(c -> c.name().equals("Lebensmittel")).findFirst().orElseThrow().id());
+        var byMain = t.as(kv, g, () -> reports.expensesByCategoryAndMonth(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), null, null, main, true));
+        assertThat(byMain).hasSize(2).extracting(r -> r.kategorie()).containsOnly("Lebensmittel");
+        var bySub = t.as(kv, g, () -> reports.expensesByCategoryAndMonth(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), null, null, main, false));
+        assertThat(bySub).extracting(r -> r.kategorie()).containsOnly("Obst und Gemüse");
+        UUID other = t.as(kv, g, () -> categories.visible().stream().filter(c -> c.name().equals("Fahrten")).findFirst().orElseThrow().id());
+        assertThat(t.as(kv, g, () -> reports.expensesByCategoryAndMonth(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), null, null, other, false))).isEmpty();
+    }
+
+    @Test
+    void aSplitReceiptCountsEachPositionInItsOwnCategory() {
+        UUID milch = t.as(kv, g, () -> categories.visible().stream().filter(c -> c.name().equals("Milch, Käse und Eier")).findFirst().orElseThrow().id());
+        byte[] jpg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0, 0};
+        t.as(pk, g, () -> expenses.submit(new ExpenseInput(LocalDate.of(2026, 1, 20),
+                List.of(new PositionInput(lebensmittel, bd("8.40")), new PositionInput(milch, bd("6.20"))), null, null, null, null),
+                List.of(new MockMultipartFile("photos", "b.jpg", "image/jpeg", jpg))));
+        var rows = t.as(kv, g, () -> reports.expensesByCategoryAndMonth(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), null, null, null));
+        assertThat(rows).anySatisfy(r -> {
+            assertThat(r.kategorie()).isEqualTo("Milch, Käse und Eier");
+            assertThat(r.summe()).isEqualByComparingTo("6.20");
+        });
+        assertThat(rows).anySatisfy(r -> {
+            assertThat(r.kategorie()).isEqualTo("Obst und Gemüse");
+            assertThat(r.summe()).isEqualByComparingTo("28.40");
+        });
+        var main = t.as(kv, g, () -> reports.expensesByCategoryAndMonth(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), null, null, null, true));
+        assertThat(main).anySatisfy(r -> {
+            assertThat(r.kategorie()).isEqualTo("Lebensmittel");
+            assertThat(r.summe()).isEqualByComparingTo("34.60");
+        });
     }
 }

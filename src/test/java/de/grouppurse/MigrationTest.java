@@ -15,9 +15,9 @@ class MigrationTest extends AbstractIntegrationTest {
         Integer tables = jdbc.queryForObject("""
                 select count(*) from information_schema.tables where table_schema = 'public' and table_name in
                 ('person','wohngruppe','mitgliedschaft','einladung','passwort_reset_token','kategorie_global',
-                 'kategorie_gruppe','familie','sollbetrag','beitrag','buchung','audit_log')
+                 'kategorie_gruppe','familie','sollbetrag','beitrag','buchung','audit_log','buchung_position')
                 """, Integer.class);
-        assertThat(tables).isEqualTo(12);
-        assertThat(jdbc.queryForObject("select count(*) from kategorie_global", Integer.class)).isEqualTo(8);
+        assertThat(tables).isEqualTo(13);
+        assertThat(jdbc.queryForObject("select count(*) from kategorie_global", Integer.class)).isEqualTo(18);
     }
 }

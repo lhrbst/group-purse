@@ -8,4 +8,5 @@
 export interface CreateCategory {
   /** @minLength 1 */
   name: string;
+  parentId?: string;
 }

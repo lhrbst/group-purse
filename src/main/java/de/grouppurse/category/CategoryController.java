@@ -17,7 +17,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/categories")
 public class CategoryController {
-    public record CreateCategory(@NotBlank String name) {
+    public record CreateCategory(@NotBlank String name, UUID parentId) {
     }
 
     public record HiddenRequest(boolean hidden) {
@@ -31,7 +31,7 @@ public class CategoryController {
         this.categories = categories;
     }
 
-    /** Pflegekräfte sehen nur sichtbare Kategorien; Kassenverwalter können mit alle=true auch ausgeblendete laden. */
+    /** Alle sichtbaren Kategorien (flach, mit parentId). Kassenverwalter können mit alle=true auch ausgeblendete laden. */
     @GetMapping
     public List<CategoryDto> list(@RequestParam(defaultValue = "false") boolean alle) {
         if (alle) {
@@ -45,7 +45,7 @@ public class CategoryController {
     @PostMapping
     public CategoryDto create(@RequestBody CreateCategory r) {
         access.requireKassenverwalter();
-        return categories.add(r.name());
+        return categories.add(r.name(), r.parentId());
     }
 
     @PutMapping("/{id}/hidden")

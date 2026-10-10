@@ -7,6 +7,7 @@
 import type { BuchungDtoArt } from './buchungDtoArt';
 import type { BuchungDtoKonto } from './buchungDtoKonto';
 import type { BuchungDtoStatus } from './buchungDtoStatus';
+import type { PositionDto } from './positionDto';
 
 export interface BuchungDto {
   id?: string;
@@ -31,4 +32,5 @@ export interface BuchungDto {
   erfasstAm?: string;
   geprueftVon?: string;
   geprueftAm?: string;
+  positionen?: PositionDto[];
 }

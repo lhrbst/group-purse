@@ -10,4 +10,5 @@ export interface CategoryDto {
   name?: string;
   global?: boolean;
   ausgeblendet?: boolean;
+  parentId?: string;
 }

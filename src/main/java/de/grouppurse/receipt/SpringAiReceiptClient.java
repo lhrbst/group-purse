@@ -33,8 +33,12 @@ public class SpringAiReceiptClient implements ReceiptModelClient {
                 Du liest einen Kassenbon aus Deutschland. Gib nur die Daten im vorgegebenen JSON-Schema zurück.
                 - haendler: Name des Geschäfts
                 - datum: Kaufdatum im Format JJJJ-MM-TT
-                - gesamtbetrag: Endsumme in Euro als Zahl mit Punkt als Dezimaltrenner
-                - kategorie: genau einer dieser Namen: %s
+                - gesamtbetrag: Endsumme des Bons in Euro als Zahl mit Punkt als Dezimaltrenner
+                - positionen: Ordne jede Zeile des Bons genau einer der erlaubten Kategorien zu und gib je Kategorie die Summe aller
+                  dazugehörigen Zeilen an. Rabatte und Pfand rechnest du bei der jeweiligen Kategorie mit ein. Die Summe aller
+                  Positionen muss dem gesamtbetrag entsprechen. Lebensmittel gehören in die passende Lebensmittel-Unterkategorie,
+                  Drogerie- und Haushaltsartikel in ihre eigenen Kategorien.
+                Erlaubte Kategorien: %s
                 Wenn du dir bei einem Feld nicht sicher bist, setze es auf null.
                 """.formatted(String.join(", ", categoryNames));
         Future<RawReceipt> call = EXECUTOR.submit(() -> chat.prompt()

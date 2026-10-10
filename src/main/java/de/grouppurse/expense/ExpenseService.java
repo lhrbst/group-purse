@@ -1,15 +1,19 @@
 package de.grouppurse.expense;
 
 import de.grouppurse.audit.AuditService;
+import de.grouppurse.category.CategoryDto;
 import de.grouppurse.category.CategoryService;
 import de.grouppurse.domain.Art;
 import de.grouppurse.domain.Buchung;
+import de.grouppurse.domain.BuchungPosition;
 import de.grouppurse.domain.BuchungStatus;
 import de.grouppurse.domain.Konto;
 import de.grouppurse.expense.ExpenseDtos.ExpenseInput;
+import de.grouppurse.expense.ExpenseDtos.PositionInput;
 import de.grouppurse.ledger.BuchungDto;
 import de.grouppurse.ledger.BuchungMapper;
 import de.grouppurse.ledger.LedgerService;
+import de.grouppurse.repo.BuchungPositionRepository;
 import de.grouppurse.repo.BuchungRepository;
 import de.grouppurse.security.CurrentUser;
 import org.springframework.data.domain.PageRequest;
@@ -26,14 +30,20 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ExpenseService {
     static final int MAX_PHOTOS = 10;
+    static final int MAX_POSITIONS = 30;
 
     private final BuchungRepository buchungen;
+    private final BuchungPositionRepository positionen;
     private final LedgerService ledger;
     private final CategoryService categories;
     private final ReceiptStorage storage;
@@ -41,9 +51,10 @@ public class ExpenseService {
     private final CurrentUser user;
     private final BuchungMapper mapper;
 
-    public ExpenseService(BuchungRepository buchungen, LedgerService ledger, CategoryService categories, ReceiptStorage storage,
-                          AuditService audit, CurrentUser user, BuchungMapper mapper) {
+    public ExpenseService(BuchungRepository buchungen, BuchungPositionRepository positionen, LedgerService ledger,
+                          CategoryService categories, ReceiptStorage storage, AuditService audit, CurrentUser user, BuchungMapper mapper) {
         this.buchungen = buchungen;
+        this.positionen = positionen;
         this.ledger = ledger;
         this.categories = categories;
         this.storage = storage;
@@ -59,8 +70,10 @@ public class ExpenseService {
         b.konto = Konto.BARKASSE;
         b.art = Art.AUSGABE;
         b.status = BuchungStatus.EINGEREICHT;
-        apply(b, in, photos, true);
-        return ledger.save(b);
+        List<PositionInput> rows = apply(b, in, photos, true);
+        Buchung saved = ledger.save(b);
+        replacePositions(saved.id, rows);
+        return saved;
     }
 
     /** Ausgabe vom Vereinskonto (Kassenverwalter), sofort gebucht. */
@@ -70,8 +83,10 @@ public class ExpenseService {
         b.konto = Konto.VEREINSKONTO;
         b.art = Art.KONTOAUSGABE;
         b.status = BuchungStatus.GEBUCHT;
-        apply(b, in, photos, true);
-        return ledger.save(b);
+        List<PositionInput> rows = apply(b, in, photos, true);
+        Buchung saved = ledger.save(b);
+        replacePositions(saved.id, rows);
+        return saved;
     }
 
     /** Pflegekraft korrigiert eine abgelehnte Ausgabe und reicht sie erneut ein. */
@@ -85,7 +100,8 @@ public class ExpenseService {
             throw new IllegalStateException("Nur abgelehnte Ausgaben können korrigiert werden");
         }
         BuchungDto before = mapper.toDto(b);
-        apply(b, in, photos, false);
+        List<PositionInput> rows = apply(b, in, photos, false);
+        replacePositions(b.id, rows);
         b.status = BuchungStatus.EINGEREICHT;
         b.ablehnungsKommentar = null;
         audit.log("Ausgabe erneut eingereicht", "Buchung", b.id, before, mapper.toDto(b));
@@ -134,9 +150,6 @@ public class ExpenseService {
         if (status != null) {
             spec = spec.and((r, q, cb) -> cb.equal(r.get("status"), status));
         }
-        if (kategorie != null) {
-            spec = spec.and((r, q, cb) -> cb.equal(r.get("kategorieId"), kategorie));
-        }
         if (von != null) {
             spec = spec.and((r, q, cb) -> cb.greaterThanOrEqualTo(r.<LocalDate>get("datum"), von));
         }
@@ -150,7 +163,14 @@ public class ExpenseService {
             String b = bewohner.trim().toLowerCase();
             spec = spec.and((r, q, cb) -> cb.equal(cb.lower(r.get("bewohnerKuerzel")), b));
         }
-        return mapper.toDtos(buchungen.findAll(spec, PageRequest.of(0, 500, Sort.by(Sort.Direction.DESC, "nummer"))).getContent());
+        List<BuchungDto> result = mapper.toDtos(buchungen.findAll(spec, PageRequest.of(0, 500, Sort.by(Sort.Direction.DESC, "nummer"))).getContent());
+        if (kategorie == null) {
+            return result;
+        }
+        var tree = categories.tree();
+        return result.stream()
+                .filter(d -> d.positionen() != null && d.positionen().stream().anyMatch(p -> tree.isSameOrChildOf(p.kategorieId(), kategorie)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -173,18 +193,50 @@ public class ExpenseService {
         }
     }
 
-    /** Prüft die Eingaben und überträgt sie auf die Buchung. Neue Fotos ersetzen vorhandene, ohne neue bleiben die alten. */
-    private void apply(Buchung b, ExpenseInput in, List<MultipartFile> photos, boolean creating) {
-        BigDecimal amount = LedgerService.money(in.betrag());
-        if (amount.signum() <= 0) {
-            throw new IllegalArgumentException("Betrag muss größer als 0 sein");
+    private void replacePositions(UUID buchungId, List<PositionInput> rows) {
+        positionen.deleteByBuchungId(buchungId);
+        positionen.flush();
+        int i = 0;
+        for (PositionInput p : rows) {
+            BuchungPosition bp = new BuchungPosition();
+            bp.buchungId = buchungId;
+            bp.kategorieId = p.kategorieId();
+            bp.betrag = p.betrag();
+            bp.position = i++;
+            positionen.save(bp);
         }
+        audit.log("Positionen gesetzt", "Buchung", buchungId, null, rows);
+    }
+
+    /**
+     * Prüft die Eingaben und überträgt sie auf die Buchung. Der Betrag der Ausgabe ist die Summe der Positionen;
+     * gleiche Kategorien werden zusammengefasst. Neue Fotos ersetzen vorhandene, ohne neue bleiben die alten.
+     * Gibt die bereinigten Positionen zurück, die danach gespeichert werden.
+     */
+    private List<PositionInput> apply(Buchung b, ExpenseInput in, List<MultipartFile> photos, boolean creating) {
         if (in.datum().isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("Das Datum darf nicht in der Zukunft liegen");
         }
-        if (!categories.exists(in.kategorieId())) {
-            throw new IllegalArgumentException("Kategorie ungültig");
+        if (in.positionen() == null || in.positionen().isEmpty()) {
+            throw new IllegalArgumentException("Mindestens eine Position mit Kategorie und Betrag ist nötig");
         }
+        if (in.positionen().size() > MAX_POSITIONS) {
+            throw new IllegalArgumentException("Höchstens " + MAX_POSITIONS + " Positionen je Beleg");
+        }
+        Set<UUID> allowed = categories.leaves().stream().map(CategoryDto::id).collect(Collectors.toSet());
+        Map<UUID, BigDecimal> merged = new LinkedHashMap<>();
+        for (PositionInput p : in.positionen()) {
+            BigDecimal amount = LedgerService.money(p.betrag());
+            if (amount.signum() <= 0) {
+                throw new IllegalArgumentException("Jede Position braucht einen Betrag größer 0");
+            }
+            if (!allowed.contains(p.kategorieId())) {
+                throw new IllegalArgumentException("Kategorie ungültig. Bei Kategorien mit Unterkategorien bitte eine Unterkategorie wählen.");
+            }
+            merged.merge(p.kategorieId(), amount, BigDecimal::add);
+        }
+        BigDecimal total = merged.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+
         List<MultipartFile> files = photos == null ? List.of() : photos.stream().filter(f -> !f.isEmpty()).toList();
         if (files.size() > MAX_PHOTOS) {
             throw new IllegalArgumentException("Höchstens " + MAX_PHOTOS + " Fotos je Beleg");
@@ -197,14 +249,18 @@ public class ExpenseService {
         if (names.isEmpty() && reason == null) {
             throw new IllegalArgumentException("Ohne Belegfoto ist eine Begründung Pflicht");
         }
-        b.betrag = amount.negate();
+        b.betrag = total.negate();
         b.datum = in.datum();
-        b.kategorieId = in.kategorieId();
+        // stellvertretende Kategorie der Buchung: die mit dem größten Anteil
+        b.kategorieId = merged.entrySet().stream().max(Map.Entry.comparingByValue()).orElseThrow().getKey();
         b.haendler = blankToNull(in.haendler());
         b.zweck = blankToNull(in.zweck());
         b.bewohnerKuerzel = blankToNull(in.bewohnerKuerzel());
         b.belegFotos = new ArrayList<>(names);
         b.begruendungOhneBeleg = names.isEmpty() ? reason : null;
+        List<PositionInput> rows = new ArrayList<>();
+        merged.forEach((k, v) -> rows.add(new PositionInput(k, v)));
+        return rows;
     }
 
     private static String blankToNull(String s) {

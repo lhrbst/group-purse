@@ -11,6 +11,7 @@ import { ReasonModal } from '../../components/ReasonModal';
 import { ReceiptThumbs } from '../../components/ReceiptThumbs';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useCategoryNames } from '../../components/useCategoryNames';
+import { describePositions } from '../../lib/categories';
 import { notifyError, notifySuccess } from '../../lib/errors';
 import { formatDate } from '../../lib/format';
 import { ART_LABEL, STATUS_LABEL } from '../../lib/labels';
@@ -31,10 +32,10 @@ function ExpenseCard({ b, categories, onApprove, onDialog }: {
           <Text fw={600}>{b.haendler || b.zweck || ART_LABEL[b.art ?? ''] || 'Ausgabe'}</Text>
           <Text size="sm" c="dimmed">
             {formatDate(b.datum)} · Nr. {b.nummer} · {b.erfasstVonName}
-            {b.kategorieId ? ` · ${categories.get(b.kategorieId) ?? ''}` : ''}
             {b.bewohnerKuerzel ? ` · Bewohner ${b.bewohnerKuerzel}` : ''}
           </Text>
           {b.zweck && b.haendler && <Text size="sm">{b.zweck}</Text>}
+          <Text size="sm">{describePositions(b.positionen, (id) => categories.get(id ?? '') ?? 'Kategorie')}</Text>
         </div>
         <Stack gap={4} align="flex-end">
           <Amount value={b.betrag} fw={700} />

@@ -4,11 +4,12 @@
  * OpenAPI definition
  * OpenAPI spec version: v0
  */
+import type { PositionInput } from './positionInput';
 
 export interface ExpenseInput {
-  betrag: number;
   datum: string;
-  kategorieId: string;
+  /** @minItems 1 */
+  positionen: PositionInput[];
   haendler?: string;
   zweck?: string;
   bewohnerKuerzel?: string;

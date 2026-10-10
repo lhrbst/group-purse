@@ -24,7 +24,7 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
     Wohngruppe g;
     MockHttpSession kv;
     MockHttpSession pk;
-    String lebensmittel;
+    String haushalt;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -36,7 +36,7 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/ledger/anfangsbestand").with(csrf()).session(kv).contentType(JSON)
                 .content("{\"konto\":\"VEREINSKONTO\",\"betrag\":1000}")).andExpect(status().isOk());
         String cats = mvc.perform(get("/api/categories").session(kv)).andReturn().getResponse().getContentAsString();
-        lebensmittel = cats.replaceAll(".*\\{\"id\":\"([^\"]+)\",\"name\":\"Lebensmittel\".*", "$1");
+        haushalt = cats.replaceAll(".*\\{\"id\":\"([^\"]+)\",\"name\":\"Haushalt\".*", "$1");
     }
 
     static byte[] jpeg() {
@@ -44,7 +44,7 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
     }
 
     String data(String amount, String date, String extra) {
-        return "{\"betrag\":" + amount + ",\"datum\":\"" + date + "\",\"kategorieId\":\"" + lebensmittel + "\"" + extra + "}";
+        return "{\"datum\":\"" + date + "\",\"positionen\":[{\"kategorieId\":\"" + haushalt + "\",\"betrag\":" + amount + "}]" + extra + "}";
     }
 
     MockMultipartHttpServletRequestBuilder form(String url, String json, boolean photo) {
@@ -91,7 +91,7 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest());
         mvc.perform(form("/api/expenses", data("0", LocalDate.now().toString(), ""), true).with(csrf()).session(pk))
                 .andExpect(status().isBadRequest());
-        mvc.perform(form("/api/expenses", data("5.00", LocalDate.now().toString(), "").replace(lebensmittel, "00000000-0000-0000-0000-000000000001"), true)
+        mvc.perform(form("/api/expenses", data("5.00", LocalDate.now().toString(), "").replace(haushalt, "00000000-0000-0000-0000-000000000001"), true)
                 .with(csrf()).session(pk)).andExpect(status().isBadRequest());
         MockMultipartHttpServletRequestBuilder notAnImage = multipart("/api/expenses")
                 .file(new MockMultipartFile("data", "", JSON, data("5.00", LocalDate.now().toString(), "").getBytes()))
@@ -175,7 +175,7 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/expenses/" + id + "/approve").with(csrf()).session(kv)).andExpect(status().isOk());
         mvc.perform(get("/api/expenses").session(kv)).andExpect(jsonPath("$.length()").value(2));
         mvc.perform(get("/api/expenses?status=GEPRUEFT").session(kv)).andExpect(jsonPath("$.length()").value(1));
-        mvc.perform(get("/api/expenses?status=EINGEREICHT&kategorie=" + lebensmittel).session(kv)).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/expenses?status=EINGEREICHT&kategorie=" + haushalt).session(kv)).andExpect(jsonPath("$.length()").value(1));
         mvc.perform(get("/api/expenses?von=" + LocalDate.now().plusDays(1)).session(kv)).andExpect(jsonPath("$.length()").value(0));
     }
 
@@ -197,5 +197,88 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
                 .andExpect(status().isForbidden());
         mvc.perform(form("/api/ledger/kontoausgabe", data("10.00", LocalDate.now().toString(), ""), false).with(csrf()).session(kv))
                 .andExpect(status().isBadRequest());
+    }
+
+
+    String categoryId(String name) throws Exception {
+        String cats = mvc.perform(get("/api/categories").session(kv)).andReturn().getResponse().getContentAsString();
+        java.util.List<String> ids = com.jayway.jsonpath.JsonPath.read(cats, "$[?(@.name=='" + name + "')].id");
+        return ids.get(0);
+    }
+
+    /** pairs: Kategorie-ID, Betrag, Kategorie-ID, Betrag, ... */
+    String positionsData(String... pairs) {
+        StringBuilder sb = new StringBuilder("{\"datum\":\"" + LocalDate.now() + "\",\"positionen\":[");
+        for (int i = 0; i < pairs.length; i += 2) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append("{\"kategorieId\":\"").append(pairs[i]).append("\",\"betrag\":").append(pairs[i + 1]).append('}');
+        }
+        return sb.append("]}").toString();
+    }
+
+    @Test
+    void receiptWithSeveralCategoriesIsSummedAndKeepsItsPositions() throws Exception {
+        String obst = categoryId("Obst und Gemüse");
+        String milch = categoryId("Milch, Käse und Eier");
+        mvc.perform(form("/api/expenses", positionsData(obst, "8.40", milch, "6.20", haushalt, "4.99"), true).with(csrf()).session(pk))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.betrag").value(-19.59))
+                .andExpect(jsonPath("$.positionen.length()").value(3))
+                .andExpect(jsonPath("$.positionen[0].betrag").value(8.4));
+        expectCash(80.41);
+    }
+
+    @Test
+    void sameCategoryTwiceIsMergedIntoOnePosition() throws Exception {
+        String obst = categoryId("Obst und Gemüse");
+        mvc.perform(form("/api/expenses", positionsData(obst, "5.00", obst, "3.00"), true).with(csrf()).session(pk))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.positionen.length()").value(1))
+                .andExpect(jsonPath("$.positionen[0].betrag").value(8.0));
+    }
+
+    @Test
+    void aMainCategoryWithSubcategoriesCannotBeUsedDirectly() throws Exception {
+        String lebensmittel = categoryId("Lebensmittel");
+        mvc.perform(form("/api/expenses", positionsData(lebensmittel, "5.00"), true).with(csrf()).session(pk)).andExpect(status().isBadRequest());
+        expectCash(100);
+    }
+
+    @Test
+    void positionsNeedAmountsAboveZero() throws Exception {
+        String obst = categoryId("Obst und Gemüse");
+        mvc.perform(form("/api/expenses", positionsData(obst, "0"), true).with(csrf()).session(pk)).andExpect(status().isBadRequest());
+        mvc.perform(form("/api/expenses", positionsData(obst, "5.00", haushalt, "-1.00"), true).with(csrf()).session(pk)).andExpect(status().isBadRequest());
+        mvc.perform(form("/api/expenses", "{\"datum\":\"" + LocalDate.now() + "\",\"positionen\":[]}", true).with(csrf()).session(pk))
+                .andExpect(status().isBadRequest());
+        expectCash(100);
+    }
+
+    @Test
+    void resubmitCanChangeTheSplit() throws Exception {
+        String id = submit(pk, "30.00");
+        mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\"Bitte aufteilen\"}"))
+                .andExpect(status().isOk());
+        String obst = categoryId("Obst und Gemüse");
+        String milch = categoryId("Milch, Käse und Eier");
+        mvc.perform(form("/api/expenses/" + id, positionsData(obst, "10.00", milch, "5.00"), false).with(csrf()).with(req -> {
+                    req.setMethod("PUT");
+                    return req;
+                }).session(pk))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.betrag").value(-15.0))
+                .andExpect(jsonPath("$.positionen.length()").value(2));
+        expectCash(85);
+    }
+
+    @Test
+    void filteringByMainCategoryIncludesItsSubcategories() throws Exception {
+        String obst = categoryId("Obst und Gemüse");
+        mvc.perform(form("/api/expenses", positionsData(obst, "10.00"), true).with(csrf()).session(pk)).andExpect(status().isCreated());
+        mvc.perform(get("/api/expenses?kategorie=" + categoryId("Lebensmittel")).session(kv)).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/expenses?kategorie=" + obst).session(kv)).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/expenses?kategorie=" + haushalt).session(kv)).andExpect(jsonPath("$.length()").value(0));
     }
 }

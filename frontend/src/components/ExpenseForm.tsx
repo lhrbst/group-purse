@@ -1,15 +1,17 @@
 import { useRef, useState } from 'react';
-import { Alert, Button, Group, Image, Loader, Select, SimpleGrid, Stack, Text, TextInput, Textarea } from '@mantine/core';
+import { ActionIcon, Alert, Button, Group, Image, Loader, Select, SimpleGrid, Stack, Text, TextInput, Textarea } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
+import { randomId } from '@mantine/hooks';
 import { useCategoryList } from '../api/generated/category-controller/category-controller';
 import { useReceiptRecognize } from '../api/generated/receipt-controller/receipt-controller';
 import type { ExpenseInput, ReceiptSuggestion } from '../api/model';
+import { leafOptions } from '../lib/categories';
 import { resizeImage } from '../lib/image';
 import { notifyError } from '../lib/errors';
 import { formatEuro, parseAmount, todayIso } from '../lib/format';
 import { zodValidate } from '../lib/zodForm';
-import { expenseSchema, missingReceiptError, type ExpenseFormValues } from './expenseSchema';
+import { expenseSchema, missingReceiptError, totalOf, type ExpenseFormValues, type PositionValues } from './expenseSchema';
 
 interface PhotoItem {
   file: File;
@@ -26,19 +28,12 @@ interface Props {
   submitLabel: string;
   submitting: boolean;
   onSubmit: (input: ExpenseInput, photos: File[]) => Promise<void>;
-  /** Kassenverwalter dürfen auch Kontoausgaben erfassen; dort gibt es keine Belegerkennung für Barkasse-Hinweise */
   hint?: string;
 }
 
-const EMPTY: ExpenseFormValues = {
-  betrag: '',
-  datum: todayIso(),
-  kategorieId: '',
-  haendler: '',
-  zweck: '',
-  bewohnerKuerzel: '',
-  begruendungOhneBeleg: '',
-};
+export const newPosition = (kategorieId = '', betrag = ''): PositionValues => ({ key: randomId(), kategorieId, betrag });
+
+const formatAmountInput = (n: number) => n.toFixed(2).replace('.', ',');
 
 export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, submitLabel, submitting, onSubmit, hint }: Props) {
   const categories = useCategoryList();
@@ -51,19 +46,30 @@ export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, sub
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ExpenseFormValues>({
-    initialValues: { ...EMPTY, ...initial },
+    initialValues: {
+      datum: todayIso(),
+      haendler: '',
+      zweck: '',
+      bewohnerKuerzel: '',
+      begruendungOhneBeleg: '',
+      ...initial,
+      positionen: initial?.positionen?.length ? initial.positionen : [newPosition()],
+    },
     validate: zodValidate(expenseSchema),
   });
 
-  const options =
-    categories.data?.status === 200 ? categories.data.data.map((c) => ({ value: c.id!, label: c.name ?? '' })) : [];
+  const allCategories = categories.data?.status === 200 ? categories.data.data : [];
+  const options = leafOptions(allCategories);
 
   function applySuggestion(s: ReceiptSuggestion) {
+    const valid = new Set(options.map((o) => o.value));
+    const rows = (s.positionen ?? []).map((p) =>
+      newPosition(p.kategorieId && valid.has(p.kategorieId) ? p.kategorieId : '', p.betrag != null ? formatAmountInput(p.betrag) : ''),
+    );
     form.setValues({
-      ...(s.betrag != null ? { betrag: String(s.betrag).replace('.', ',') } : {}),
       ...(s.datum ? { datum: s.datum } : {}),
-      ...(s.kategorieId && options.some((o) => o.value === s.kategorieId) ? { kategorieId: s.kategorieId } : {}),
       ...(s.haendler ? { haendler: s.haendler } : {}),
+      ...(rows.length > 0 ? { positionen: rows } : {}),
     });
     setSuggested(true);
   }
@@ -112,9 +118,8 @@ export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, sub
       return;
     }
     const input: ExpenseInput = {
-      betrag: Math.round(parseAmount(v.betrag) * 100) / 100,
       datum: v.datum,
-      kategorieId: v.kategorieId,
+      positionen: v.positionen.map((p) => ({ kategorieId: p.kategorieId, betrag: Math.round(parseAmount(p.betrag) * 100) / 100 })),
       haendler: v.haendler.trim() || undefined,
       zweck: v.zweck.trim() || undefined,
       bewohnerKuerzel: v.bewohnerKuerzel.trim() || undefined,
@@ -128,7 +133,7 @@ export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, sub
   });
 
   const noPhoto = photos.length + existingPhotos === 0;
-  const amount = parseAmount(form.values.betrag);
+  const total = totalOf(form.values.positionen);
 
   return (
     <form onSubmit={submit}>
@@ -177,20 +182,54 @@ export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, sub
           {reading && (
             <Group gap="xs">
               <Loader size="xs" />
-              <Text size="sm" c="dimmed">Beleg wird gelesen …</Text>
+              <Text size="sm" c="dimmed">Beleg wird gelesen und aufgeteilt …</Text>
             </Group>
           )}
           {suggested && !reading && (
             <Alert color="green" variant="light">
-              Vorschlag aus dem Beleg übernommen. Bitte Betrag, Datum und Kategorie prüfen.
+              Vorschlag aus dem Beleg übernommen. Bitte die Aufteilung und das Datum prüfen.
             </Alert>
           )}
         </Stack>
 
-        <TextInput label="Betrag (€)" inputMode="decimal" placeholder="z. B. 12,50" required {...form.getInputProps('betrag')} />
-        {Number.isFinite(amount) && amount > 0 && <Text size="xs" c="dimmed" mt={-8}>{formatEuro(amount)} werden von der Barkasse abgezogen.</Text>}
+        <Stack gap="xs">
+          <Text fw={600}>Aufteilung nach Kategorien</Text>
+          {form.values.positionen.map((pos, i) => (
+            <Group key={pos.key} align="flex-start" wrap="nowrap" gap="xs">
+              <Select
+                style={{ flex: 1, minWidth: 0 }}
+                placeholder="Kategorie wählen"
+                aria-label={`Kategorie Position ${i + 1}`}
+                data={options}
+                searchable
+                {...form.getInputProps(`positionen.${i}.kategorieId`)}
+              />
+              <TextInput
+                w={104}
+                inputMode="decimal"
+                placeholder="Betrag"
+                aria-label={`Betrag Position ${i + 1}`}
+                {...form.getInputProps(`positionen.${i}.betrag`)}
+              />
+              {form.values.positionen.length > 1 && (
+                <ActionIcon variant="subtle" color="red" size="lg" mt={1} aria-label={`Position ${i + 1} entfernen`} onClick={() => form.removeListItem('positionen', i)}>
+                  ✕
+                </ActionIcon>
+              )}
+            </Group>
+          ))}
+          <Group justify="space-between">
+            <Button type="button" variant="light" size="compact-md" onClick={() => form.insertListItem('positionen', newPosition())}>
+              + Weitere Kategorie
+            </Button>
+            <Text fw={600}>Summe: {formatEuro(total)}</Text>
+          </Group>
+          <Text size="xs" c="dimmed">
+            Die Summe wird von der Barkasse abgezogen. Ein Beleg mit nur einer Kategorie braucht nur eine Zeile.
+          </Text>
+        </Stack>
+
         <DateInput label="Datum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} required {...form.getInputProps('datum')} />
-        <Select label="Kategorie" placeholder="Bitte wählen" data={options} searchable required {...form.getInputProps('kategorieId')} />
         <TextInput label="Händler" {...form.getInputProps('haendler')} />
         <TextInput label="Zweck" placeholder="z. B. Einkauf Wochenende" {...form.getInputProps('zweck')} />
         <TextInput label="Bewohner (Kürzel, optional)" description="Nur wenn die Ausgabe einer Person zugeordnet werden soll" {...form.getInputProps('bewohnerKuerzel')} />

@@ -5,6 +5,7 @@ import de.grouppurse.contributions.GridService;
 import de.grouppurse.domain.Art;
 import de.grouppurse.domain.Beitrag;
 import de.grouppurse.domain.Buchung;
+import de.grouppurse.domain.BuchungPosition;
 import de.grouppurse.domain.BuchungStatus;
 import de.grouppurse.domain.Konto;
 import de.grouppurse.domain.Wohngruppe;
@@ -15,7 +16,9 @@ import de.grouppurse.reports.ReportDtos.CategoryMonthSum;
 import de.grouppurse.reports.ReportDtos.CaregiverDashboard;
 import de.grouppurse.reports.ReportDtos.IncomeExpense;
 import de.grouppurse.reports.ReportDtos.ManagerDashboard;
+import de.grouppurse.category.CategoryTree;
 import de.grouppurse.repo.BeitragRepository;
+import de.grouppurse.repo.BuchungPositionRepository;
 import de.grouppurse.repo.BuchungRepository;
 import de.grouppurse.repo.WohngruppeRepository;
 import de.grouppurse.tenant.TenantContext;
@@ -43,9 +46,10 @@ public class ReportService {
     private final GridService grid;
     private final CategoryService categories;
     private final ExpenseService expenses;
+    private final BuchungPositionRepository positions;
 
     public ReportService(BuchungRepository buchungen, BeitragRepository beitraege, WohngruppeRepository gruppen,
-                         BalanceService balances, GridService grid, CategoryService categories, ExpenseService expenses) {
+                         BalanceService balances, GridService grid, CategoryService categories, ExpenseService expenses, BuchungPositionRepository positions) {
         this.buchungen = buchungen;
         this.beitraege = beitraege;
         this.gruppen = gruppen;
@@ -53,6 +57,7 @@ public class ReportService {
         this.grid = grid;
         this.categories = categories;
         this.expenses = expenses;
+        this.positions = positions;
     }
 
     private Wohngruppe group() {
@@ -73,13 +78,28 @@ public class ReportService {
         return new CaregiverDashboard(kasse, kasse.compareTo(g.mindestbetragKasse) < 0, kasse.signum() < 0, expenses.mine(30));
     }
 
-    /** Ausgaben (Barkasse und Konto, ohne stornierte) je Monat und Kategorie, als positive Beträge. */
     public List<CategoryMonthSum> expensesByCategoryAndMonth(LocalDate von, LocalDate bis, UUID person, String bewohner, UUID kategorie) {
-        Map<UUID, String> names = categories.namesById();
+        return expensesByCategoryAndMonth(von, bis, person, bewohner, kategorie, false);
+    }
+
+    /**
+     * Ausgaben (Barkasse und Konto, ohne stornierte) je Monat und Kategorie, als positive Beträge, aus den Belegpositionen.
+     * byMain fasst Unterkategorien zur Hauptkategorie zusammen. Ein Kategoriefilter auf eine Hauptkategorie schließt ihre Unterkategorien ein.
+     */
+    public List<CategoryMonthSum> expensesByCategoryAndMonth(LocalDate von, LocalDate bis, UUID person, String bewohner, UUID kategorie, boolean byMain) {
+        CategoryTree tree = categories.tree();
+        Map<UUID, Buchung> rows = new java.util.HashMap<>();
+        expenseRows(von, bis, person, bewohner).forEach(b -> rows.put(b.id, b));
+        if (rows.isEmpty()) {
+            return List.of();
+        }
         Map<String, BigDecimal> sums = new TreeMap<>();
-        for (Buchung b : expenseRows(von, bis, person, bewohner, kategorie)) {
-            String name = b.kategorieId == null ? "Ohne Kategorie" : names.getOrDefault(b.kategorieId, "Ohne Kategorie");
-            sums.merge(YearMonth.from(b.datum) + "|" + name, b.betrag.negate(), BigDecimal::add);
+        for (BuchungPosition p : positions.findByBuchungIdInOrderByPositionAsc(rows.keySet())) {
+            if (kategorie != null && !tree.isSameOrChildOf(p.kategorieId, kategorie)) {
+                continue;
+            }
+            String name = byMain ? tree.mainName(p.kategorieId) : tree.name(p.kategorieId);
+            sums.merge(YearMonth.from(rows.get(p.buchungId).datum) + "|" + name, p.betrag, BigDecimal::add);
         }
         List<CategoryMonthSum> result = new ArrayList<>();
         sums.forEach((k, v) -> {
@@ -97,7 +117,7 @@ public class ReportService {
                 income.merge(YearMonth.from(b.eingangsdatum), b.betrag, BigDecimal::add);
             }
         }
-        for (Buchung b : expenseRows(von, bis, null, null, null)) {
+        for (Buchung b : expenseRows(von, bis, null, null)) {
             expense.merge(YearMonth.from(b.datum), b.betrag.negate(), BigDecimal::add);
         }
         List<IncomeExpense> result = new ArrayList<>();
@@ -138,7 +158,7 @@ public class ReportService {
         return points;
     }
 
-    private List<Buchung> expenseRows(LocalDate von, LocalDate bis, UUID person, String bewohner, UUID kategorie) {
+    private List<Buchung> expenseRows(LocalDate von, LocalDate bis, UUID person, String bewohner) {
         Specification<Buchung> spec = (r, q, cb) -> cb.and(
                 r.get("art").in(Art.AUSGABE, Art.KONTOAUSGABE),
                 cb.notEqual(r.get("status"), BuchungStatus.STORNIERT),
@@ -146,9 +166,6 @@ public class ReportService {
                 cb.lessThanOrEqualTo(r.<LocalDate>get("datum"), bis));
         if (person != null) {
             spec = spec.and((r, q, cb) -> cb.equal(r.get("erfasstVon"), person));
-        }
-        if (kategorie != null) {
-            spec = spec.and((r, q, cb) -> cb.equal(r.get("kategorieId"), kategorie));
         }
         if (bewohner != null && !bewohner.isBlank()) {
             String b = bewohner.trim().toLowerCase();

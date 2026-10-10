@@ -4,10 +4,11 @@
  * OpenAPI definition
  * OpenAPI spec version: v0
  */
+import type { PositionSuggestion } from './positionSuggestion';
 
 export interface ReceiptSuggestion {
   haendler?: string;
   datum?: string;
   betrag?: number;
-  kategorieId?: string;
+  positionen?: PositionSuggestion[];
 }

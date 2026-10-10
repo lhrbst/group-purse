@@ -23,6 +23,7 @@ import { LoadError, Loading } from '../../components/Loading';
 import { ReasonModal } from '../../components/ReasonModal';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useCategoryNames } from '../../components/useCategoryNames';
+import { describePositions } from '../../lib/categories';
 import { notifyError, notifySuccess } from '../../lib/errors';
 import { formatDate, formatEuro, parseAmount, shiftMonth, todayIso, currentMonth } from '../../lib/format';
 import { ART_LABEL, KONTO_LABEL } from '../../lib/labels';
@@ -337,7 +338,7 @@ export function CashPage() {
                   <Table.Td>{ART_LABEL[r.art ?? ''] ?? r.art}</Table.Td>
                   <Table.Td ta="right"><Amount value={r.betrag} /></Table.Td>
                   <Table.Td>
-                    {[r.kategorieId ? categories.get(r.kategorieId) : null, r.haendler, r.zweck].filter(Boolean).join(' · ')}
+                    {[describePositions(r.positionen, (id) => categories.get(id ?? '') ?? 'Kategorie') || null, r.haendler, r.zweck].filter(Boolean).join(' · ')}
                   </Table.Td>
                   <Table.Td><StatusBadge status={r.status} /></Table.Td>
                   <Table.Td>

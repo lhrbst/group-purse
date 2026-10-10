@@ -13,9 +13,14 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-/** Globale Standardkategorien plus gruppeneigene; globale lassen sich je Gruppe ausblenden. */
+/**
+ * Globale Standardkategorien plus gruppeneigene, höchstens zwei Ebenen (Hauptkategorie → Unterkategorie).
+ * Jede Kategorie lässt sich je Gruppe ausblenden. Auf Belegpositionen wählbar sind nur Kategorien ohne sichtbare Unterkategorien.
+ */
 @Service
 public class CategoryService {
     private final KategorieGlobalRepository globals;
@@ -28,7 +33,7 @@ public class CategoryService {
         this.audit = audit;
     }
 
-    /** Alle Kategorien der aktiven Gruppe inkl. ausgeblendeter (für Verwaltung und Anzeige alter Buchungen). */
+    /** Alle Kategorien der aktiven Gruppe inkl. ausgeblendeter, sortiert: Hauptkategorie, direkt darunter ihre Unterkategorien. */
     @Transactional(readOnly = true)
     public List<CategoryDto> all() {
         Map<UUID, KategorieGruppe> overrides = new HashMap<>();
@@ -41,25 +46,48 @@ public class CategoryService {
         List<CategoryDto> result = new ArrayList<>();
         for (KategorieGlobal g : globals.findAll()) {
             KategorieGruppe o = overrides.get(g.id);
-            result.add(new CategoryDto(g.id, g.name, true, o != null && o.ausgeblendet));
+            result.add(new CategoryDto(g.id, g.name, true, o != null && o.ausgeblendet, g.parentId));
         }
         for (KategorieGruppe k : ownRows) {
             if (k.globalRef == null) {
-                result.add(new CategoryDto(k.id, k.name, false, k.ausgeblendet));
+                result.add(new CategoryDto(k.id, k.name, false, k.ausgeblendet, k.parentId));
             }
         }
-        result.sort(Comparator.comparing(CategoryDto::name, String.CASE_INSENSITIVE_ORDER));
+        Map<UUID, String> names = result.stream().collect(Collectors.toMap(CategoryDto::id, CategoryDto::name));
+        result.sort(Comparator
+                .comparing((CategoryDto c) -> (c.parentId() == null ? c.name() : names.getOrDefault(c.parentId(), c.name())).toLowerCase())
+                .thenComparing(c -> c.parentId() == null ? 0 : 1)
+                .thenComparing(CategoryDto::name, String.CASE_INSENSITIVE_ORDER));
         return result;
     }
 
+    /** Sichtbare Kategorien: nicht ausgeblendet, und bei Unterkategorien auch die Hauptkategorie sichtbar. */
     @Transactional(readOnly = true)
     public List<CategoryDto> visible() {
-        return all().stream().filter(c -> !c.ausgeblendet()).toList();
+        List<CategoryDto> all = all();
+        Set<UUID> visibleMain = all.stream().filter(c -> c.parentId() == null && !c.ausgeblendet()).map(CategoryDto::id).collect(Collectors.toSet());
+        return all.stream()
+                .filter(c -> !c.ausgeblendet())
+                .filter(c -> c.parentId() == null || visibleMain.contains(c.parentId()))
+                .toList();
+    }
+
+    /** Auf Positionen wählbar: sichtbar und ohne sichtbare Unterkategorie. */
+    @Transactional(readOnly = true)
+    public List<CategoryDto> leaves() {
+        List<CategoryDto> visible = visible();
+        Set<UUID> parents = visible.stream().map(CategoryDto::parentId).filter(p -> p != null).collect(Collectors.toSet());
+        return visible.stream().filter(c -> !parents.contains(c.id())).toList();
     }
 
     @Transactional(readOnly = true)
     public boolean exists(UUID id) {
-        return id != null && visible().stream().anyMatch(c -> c.id().equals(id));
+        return id != null && leaves().stream().anyMatch(c -> c.id().equals(id));
+    }
+
+    @Transactional(readOnly = true)
+    public CategoryTree tree() {
+        return new CategoryTree(all());
     }
 
     @Transactional(readOnly = true)
@@ -70,19 +98,28 @@ public class CategoryService {
     }
 
     @Transactional
-    public CategoryDto add(String rawName) {
+    public CategoryDto add(String rawName, UUID parentId) {
         if (rawName == null || rawName.isBlank()) {
             throw new IllegalArgumentException("Name fehlt");
         }
         String name = rawName.trim();
-        if (all().stream().anyMatch(c -> c.name().equalsIgnoreCase(name))) {
+        List<CategoryDto> all = all();
+        if (all.stream().anyMatch(c -> c.name().equalsIgnoreCase(name))) {
             throw new IllegalStateException("Eine Kategorie mit diesem Namen existiert bereits");
+        }
+        if (parentId != null) {
+            CategoryDto parent = all.stream().filter(c -> c.id().equals(parentId)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Oberkategorie nicht gefunden"));
+            if (parent.parentId() != null) {
+                throw new IllegalArgumentException("Unterkategorien gibt es nur eine Ebene tief");
+            }
         }
         KategorieGruppe k = new KategorieGruppe();
         k.name = name;
+        k.parentId = parentId;
         k = own.save(k);
         audit.log("Kategorie angelegt", "Kategorie", k.id, null, name);
-        return new CategoryDto(k.id, k.name, false, false);
+        return new CategoryDto(k.id, k.name, false, false, parentId);
     }
 
     @Transactional

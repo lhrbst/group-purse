@@ -1,6 +1,9 @@
 package de.grouppurse.export;
 
 import de.grouppurse.category.CategoryService;
+import de.grouppurse.category.CategoryTree;
+import de.grouppurse.domain.BuchungPosition;
+import de.grouppurse.repo.BuchungPositionRepository;
 import de.grouppurse.domain.Buchung;
 import de.grouppurse.domain.Person;
 import de.grouppurse.repo.BuchungRepository;
@@ -25,11 +28,14 @@ public class CsvExportService {
     private final BuchungRepository buchungen;
     private final PersonRepository people;
     private final CategoryService categories;
+    private final BuchungPositionRepository positionRepo;
 
-    public CsvExportService(BuchungRepository buchungen, PersonRepository people, CategoryService categories) {
+    public CsvExportService(BuchungRepository buchungen, PersonRepository people, CategoryService categories,
+                            BuchungPositionRepository positionRepo) {
         this.buchungen = buchungen;
         this.people = people;
         this.categories = categories;
+        this.positionRepo = positionRepo;
     }
 
     /** Text als Excel-sichere Zelle: immer in Anführungszeichen, Formelzeichen am Anfang werden entschärft. */
@@ -49,7 +55,9 @@ public class CsvExportService {
     public void write(int year, OutputStream out) throws IOException {
         List<Buchung> all = buchungen.findAll();
         Map<UUID, Long> numberById = all.stream().collect(Collectors.toMap(b -> b.id, b -> b.nummer));
-        Map<UUID, String> categoryNames = categories.namesById();
+        CategoryTree tree = categories.tree();
+        Map<UUID, List<BuchungPosition>> positions = all.isEmpty() ? Map.of() : positionRepo.findByBuchungIdInOrderByPositionAsc(all.stream().map(b -> b.id).toList())
+                .stream().collect(Collectors.groupingBy(p -> p.buchungId));
         Map<UUID, String> personNames = new HashMap<>();
         for (Person p : people.findAllById(all.stream().map(b -> b.erfasstVon).distinct().toList())) {
             personNames.put(p.id, p.name);
@@ -61,7 +69,7 @@ public class CsvExportService {
                     .append(b.konto == null ? "" : b.konto.name()).append(';')
                     .append(b.art.name()).append(';')
                     .append(ExportFormat.number(b.betrag)).append(';')
-                    .append(text(b.kategorieId == null ? null : categoryNames.get(b.kategorieId))).append(';')
+                    .append(text(ExportPositions.describe(b, positions, tree))).append(';')
                     .append(text(b.zweck)).append(';')
                     .append(text(b.haendler)).append(';')
                     .append(text(b.bewohnerKuerzel)).append(';')

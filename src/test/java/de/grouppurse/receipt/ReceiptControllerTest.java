@@ -1,6 +1,7 @@
 package de.grouppurse.receipt;
 
 import de.grouppurse.AbstractIntegrationTest;
+import de.grouppurse.receipt.ReceiptModelClient.RawPosition;
 import de.grouppurse.receipt.ReceiptModelClient.RawReceipt;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpSession;
@@ -10,12 +11,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,20 +29,22 @@ class ReceiptControllerTest extends AbstractIntegrationTest {
     static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F', 0, 1};
 
     @Test
-    void returnsSuggestionForActiveMember() throws Exception {
+    void returnsSplitSuggestionForActiveMember() throws Exception {
         var g = t.group("KI");
         MockHttpSession pk = t.pflegekraft(g);
         MockHttpSession kv = t.kassenverwalter(g);
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/ledger/anfangsbestand")
-                .with(csrf()).session(kv).contentType("application/json")
+        mvc.perform(post("/api/ledger/anfangsbestand").with(csrf()).session(kv).contentType("application/json")
                 .content("{\"konto\":\"BARKASSE\",\"betrag\":100}")).andExpect(status().isOk());
         when(client.extract(any(), any(), any(), any())).thenReturn(Optional.of(
-                new RawReceipt("REWE", LocalDate.now().toString(), new BigDecimal("12.34"), "Lebensmittel")));
+                new RawReceipt("REWE", LocalDate.now().toString(), new BigDecimal("12.34"),
+                        List.of(new RawPosition("Obst und Gemüse", new BigDecimal("7.34")), new RawPosition("Haushalt", new BigDecimal("5.00"))))));
         mvc.perform(multipart("/api/receipts/recognize").file(new MockMultipartFile("photo", "b.jpg", "image/jpeg", JPEG))
                         .with(csrf()).session(pk))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.haendler").value("REWE"))
-                .andExpect(jsonPath("$.betrag").value(12.34));
+                .andExpect(jsonPath("$.betrag").value(12.34))
+                .andExpect(jsonPath("$.positionen.length()").value(2))
+                .andExpect(jsonPath("$.positionen[0].betrag").value(7.34));
     }
 
     @Test

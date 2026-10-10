@@ -390,6 +390,16 @@ Diese Entscheidungen ergänzen die Spezifikation und haben bei Widersprüchen Vo
 - Person: `ist_admin`
 - Neue Tabellen: Einladung (Token, E-Mail, Wohngruppe, Rolle, gültig bis), Passwort-Reset-Token
 
+### Kategorien, Unterkategorien und Belegpositionen (10.10.2026)
+
+- Kategorien haben **eine** Ebene Unterkategorien. Standardmäßig hat nur **Lebensmittel** Unterkategorien: Obst und Gemüse · Brot und Backwaren · Milch, Käse und Eier · Fleisch, Wurst und Fisch · Tiefkühl und Fertiggerichte · Grundnahrungsmittel · Getränke · Süßes und Snacks · Aufstriche und Frühstück · Sonstige Lebensmittel. Kein Pfand.
+- Ein Beleg besteht aus **Positionen** (Kategorie + Betrag). Jede Position gehört genau einer Kategorie; gewählt werden kann nur eine Kategorie ohne Unterkategorien (also z. B. „Obst und Gemüse“ oder „Haushalt“, nicht „Lebensmittel“). Auf einem Beleg können Unterkategorien und andere Hauptkategorien gemischt vorkommen.
+- Der Betrag der Ausgabe ist die **Summe der Positionen**; es gibt keinen getrennten Gesamtbetrag und damit keinen Restbetrag. Gleiche Kategorien auf einem Beleg werden zusammengefasst, jede Position muss größer als 0 sein.
+- Die Belegerkennung liefert die Aufteilung als Vorschlag (Summe je Kategorie). Passt die Summe nicht zur Endsumme laut Bon oder fehlt eine Kategorie, wird einmal das stärkere Modell gefragt. Die Pflegekraft prüft und korrigiert die Aufteilung.
+- Kategorien verwalten (ein-/ausblenden, eigene hinzufügen, optional als Unterkategorie) darf nur der Kassenverwalter, nicht die Pflegekraft. Wird eine Hauptkategorie ausgeblendet, sind auch ihre Unterkategorien nicht mehr wählbar.
+- Auswertungen, PDF und CSV arbeiten mit den Positionen; Auswertungen lassen sich nach Haupt- oder Unterkategorie darstellen. Ein Kategoriefilter auf eine Hauptkategorie schließt ihre Unterkategorien ein.
+- Neue Tabelle `buchung_position`; Spalte `parent_id` an den Kategorietabellen. Bestehende Ausgaben bekommen bei der Migration eine Position über den vollen Betrag.
+
 ### Technische Festlegungen
 
 - Modellnamen für die Belegerkennung sind Konfiguration; die KI-Erkennung ist abschaltbar (dann manuelle Eingabe).

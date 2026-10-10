@@ -11,4 +11,5 @@ bis?: string;
 person?: string;
 bewohner?: string;
 kategorie?: string;
+ebene?: string;
 };

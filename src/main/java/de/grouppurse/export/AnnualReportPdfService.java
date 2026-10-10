@@ -1,6 +1,9 @@
 package de.grouppurse.export;
 
 import de.grouppurse.category.CategoryService;
+import de.grouppurse.category.CategoryTree;
+import de.grouppurse.domain.BuchungPosition;
+import de.grouppurse.repo.BuchungPositionRepository;
 import de.grouppurse.domain.Art;
 import de.grouppurse.domain.Beitrag;
 import de.grouppurse.domain.Buchung;
@@ -34,6 +37,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -52,14 +56,17 @@ public class AnnualReportPdfService {
     private final FamilieRepository familien;
     private final WohngruppeRepository gruppen;
     private final CategoryService categories;
+    private final BuchungPositionRepository positionRepo;
 
     public AnnualReportPdfService(BuchungRepository buchungen, BeitragRepository beitraege, FamilieRepository familien,
-                                  WohngruppeRepository gruppen, CategoryService categories) {
+                                  WohngruppeRepository gruppen, CategoryService categories,
+                                  BuchungPositionRepository positionRepo) {
         this.buchungen = buchungen;
         this.beitraege = beitraege;
         this.familien = familien;
         this.gruppen = gruppen;
         this.categories = categories;
+        this.positionRepo = positionRepo;
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +74,9 @@ public class AnnualReportPdfService {
         Wohngruppe g = gruppen.findById(TenantContext.get().orElseThrow()).orElseThrow();
         List<Buchung> all = buchungen.findAll();
         List<Beitrag> income = beitraege.findByStorniertFalse();
-        Map<UUID, String> categoryNames = categories.namesById();
+        CategoryTree tree = categories.tree();
+        Map<UUID, List<BuchungPosition>> positions = all.isEmpty() ? Map.of() : positionRepo.findByBuchungIdInOrderByPositionAsc(all.stream().map(b -> b.id).toList())
+                .stream().collect(java.util.stream.Collectors.groupingBy(p -> p.buchungId));
         LocalDate start = LocalDate.of(year, 1, 1);
         LocalDate end = LocalDate.of(year, 12, 31);
 
@@ -81,8 +90,8 @@ public class AnnualReportPdfService {
 
             accountSection(doc, all, income, start, end);
             incomeSection(doc, income, start, end);
-            expenseSection(doc, all, categoryNames, year);
-            ledgerSection(doc, all, categoryNames, year);
+            expenseSection(doc, all, positions, tree, year);
+            ledgerSection(doc, all, positions, tree, year);
             doc.close();
         } catch (DocumentException e) {
             throw new IOException("PDF konnte nicht erzeugt werden", e);
@@ -152,32 +161,47 @@ public class AnnualReportPdfService {
         doc.add(new Paragraph(" "));
     }
 
-    private void expenseSection(Document doc, List<Buchung> all, Map<UUID, String> categoryNames, int year) throws DocumentException {
+    private void expenseSection(Document doc, List<Buchung> all, Map<UUID, List<BuchungPosition>> positions, CategoryTree tree, int year) throws DocumentException {
         doc.add(new Paragraph("3. Ausgaben nach Kategorie", H2));
-        Map<String, BigDecimal> perCategory = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        Map<UUID, BigDecimal> perCategory = new HashMap<>();
         BigDecimal total = BigDecimal.ZERO;
         for (Buchung b : all) {
             if (b.datum.getYear() == year && (b.art == Art.AUSGABE || b.art == Art.KONTOAUSGABE) && b.status != BuchungStatus.STORNIERT) {
-                String name = b.kategorieId == null ? "Ohne Kategorie" : categoryNames.getOrDefault(b.kategorieId, "Ohne Kategorie");
-                perCategory.merge(name, b.betrag.negate(), BigDecimal::add);
+                List<BuchungPosition> list = positions.getOrDefault(b.id, List.of());
+                if (list.isEmpty()) {
+                    perCategory.merge(b.kategorieId, b.betrag.negate(), BigDecimal::add);
+                } else {
+                    for (BuchungPosition p : list) {
+                        perCategory.merge(p.kategorieId, p.betrag, BigDecimal::add);
+                    }
+                }
                 total = total.add(b.betrag.negate());
             }
         }
+        Map<UUID, BigDecimal> perMain = new HashMap<>();
+        perCategory.forEach((k, v) -> perMain.merge(tree.mainId(k), v, BigDecimal::add));
         PdfPTable t = table(new float[]{6, 3});
         header(t, "Kategorie", "Summe");
-        perCategory.forEach((k, v) -> row(t, k, ExportFormat.euro(v)));
+        perMain.entrySet().stream()
+                .sorted(Comparator.comparing(e -> tree.name(e.getKey()), String.CASE_INSENSITIVE_ORDER))
+                .forEach(main -> {
+                    row(t, tree.name(main.getKey()), ExportFormat.euro(main.getValue()));
+                    perCategory.entrySet().stream()
+                            .filter(c -> !Objects.equals(c.getKey(), main.getKey()) && Objects.equals(tree.mainId(c.getKey()), main.getKey()))
+                            .sorted(Comparator.comparing(c -> tree.name(c.getKey()), String.CASE_INSENSITIVE_ORDER))
+                            .forEach(c -> row(t, "      – " + tree.name(c.getKey()), ExportFormat.euro(c.getValue())));
+                });
         row(t, "Summe Ausgaben", ExportFormat.euro(total));
         doc.add(t);
         doc.add(new Paragraph(" "));
     }
 
-    private void ledgerSection(Document doc, List<Buchung> all, Map<UUID, String> categoryNames, int year) throws DocumentException {
+    private void ledgerSection(Document doc, List<Buchung> all, Map<UUID, List<BuchungPosition>> positions, CategoryTree tree, int year) throws DocumentException {
         doc.add(new Paragraph("4. Kassenbuch " + year, H2));
         PdfPTable t = table(new float[]{1, 2, 2.2f, 2.4f, 2.2f, 5, 2.2f});
         header(t, "Nr.", "Datum", "Konto", "Art", "Betrag", "Kategorie / Zweck", "Status");
         all.stream().filter(b -> b.datum.getYear() == year).sorted(Comparator.comparingLong((Buchung b) -> b.nummer)).forEach(b -> {
-            String what = (b.kategorieId == null ? "" : categoryNames.getOrDefault(b.kategorieId, "") + " ")
-                    + (b.zweck == null ? "" : b.zweck);
+            String what = (ExportPositions.describe(b, positions, tree) + " " + (b.zweck == null ? "" : b.zweck)).trim();
             t.addCell(cell(String.valueOf(b.nummer), SMALL, Element.ALIGN_RIGHT));
             t.addCell(cell(ExportFormat.date(b.datum), SMALL, Element.ALIGN_LEFT));
             t.addCell(cell(b.konto == Konto.BARKASSE ? "Barkasse" : "Vereinskonto", SMALL, Element.ALIGN_LEFT));

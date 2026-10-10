@@ -1,6 +1,8 @@
 import { Button, Card, Group, Stack, Text } from '@mantine/core';
 import { Link } from 'react-router-dom';
+import { useCategoryList } from '../api/generated/category-controller/category-controller';
 import type { BuchungDto } from '../api/model';
+import { categoryLabel, describePositions } from '../lib/categories';
 import { formatDate } from '../lib/format';
 import { Amount } from './Amount';
 import { ReceiptThumbs } from './ReceiptThumbs';
@@ -15,6 +17,8 @@ interface Props {
 }
 
 export function ExpenseList({ items, empty, showCorrect = false, showThumbs = false }: Props) {
+  const categories = useCategoryList();
+  const all = categories.data?.status === 200 ? categories.data.data : [];
   if (items.length === 0) {
     return <Text c="dimmed">{empty}</Text>;
   }
@@ -29,6 +33,7 @@ export function ExpenseList({ items, empty, showCorrect = false, showThumbs = fa
                 {formatDate(b.datum)} · Nr. {b.nummer}
                 {b.zweck && b.haendler ? ` · ${b.zweck}` : ''}
               </Text>
+              <Text size="sm">{describePositions(b.positionen, (id) => categoryLabel(all, id))}</Text>
             </div>
             <Stack gap={4} align="flex-end">
               <Amount value={b.betrag} fw={600} />

@@ -6,6 +6,7 @@ import de.grouppurse.domain.Konto;
 import de.grouppurse.domain.Person;
 import de.grouppurse.domain.Wohngruppe;
 import de.grouppurse.expense.ExpenseDtos.ExpenseInput;
+import de.grouppurse.expense.ExpenseDtos.PositionInput;
 import de.grouppurse.expense.ExpenseService;
 import de.grouppurse.ledger.LedgerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,8 +52,8 @@ class ExportTest extends AbstractIntegrationTest {
         kvSession = t.sessionFor(kv, g);
         t.as(kv, g, () -> {
             ledger.anfangsbestand(Konto.BARKASSE, new BigDecimal("200.00"), LocalDate.now());
-            UUID cat = categories.visible().get(0).id();
-            expenses.submit(new ExpenseInput(new BigDecimal("12.50"), LocalDate.now(), cat, "Kiosk \"Eck\"; Berlin", "=SUM(1)", null, null),
+            UUID cat = categories.leaves().get(0).id();
+            expenses.submit(ExpenseInput.single(new BigDecimal("12.50"), LocalDate.now(), cat, "Kiosk \"Eck\"; Berlin", "=SUM(1)", null, null),
                     List.of(new MockMultipartFile("photos", "a.jpg", "image/jpeg", FOTO1),
                             new MockMultipartFile("photos", "b.jpg", "image/jpeg", FOTO2)));
         });
@@ -118,5 +119,24 @@ class ExportTest extends AbstractIntegrationTest {
         String csv = new String(mvc.perform(get("/api/export/bookings.csv?jahr=" + year).session(other))
                 .andReturn().getResponse().getContentAsByteArray(), StandardCharsets.UTF_8);
         assertThat(csv).doesNotContain("SUM(1)");
+    }
+
+
+    @Test
+    void csvAndPdfListEveryPositionOfASplitReceipt() throws Exception {
+        UUID obst = t.as(kv, g, () -> categories.leaves().stream().filter(c -> c.name().equals("Obst und Gemüse")).findFirst().orElseThrow().id());
+        UUID haushalt = t.as(kv, g, () -> categories.leaves().stream().filter(c -> c.name().equals("Haushalt")).findFirst().orElseThrow().id());
+        t.as(kv, g, () -> expenses.submit(new ExpenseInput(LocalDate.now(), List.of(new PositionInput(obst, new BigDecimal("8.40")), new PositionInput(haushalt, new BigDecimal("4.99"))),
+                "REWE", "Wocheneinkauf", null, null), List.of(new MockMultipartFile("photos", "a.jpg", "image/jpeg", FOTO1))));
+        String csv = new String(mvc.perform(get("/api/export/bookings.csv?jahr=" + year).session(kvSession)).andReturn().getResponse().getContentAsByteArray(), StandardCharsets.UTF_8);
+        assertThat(csv).contains("Lebensmittel › Obst und Gemüse (8,40) | Haushalt (4,99)");
+        byte[] pdf = mvc.perform(get("/api/export/annual-report.pdf?jahr=" + year).session(kvSession)).andReturn().getResponse().getContentAsByteArray();
+        PdfReader reader = new PdfReader(pdf);
+        StringBuilder text = new StringBuilder();
+        PdfTextExtractor extractor = new PdfTextExtractor(reader);
+        for (int p = 1; p <= reader.getNumberOfPages(); p++) {
+            text.append(extractor.getTextFromPage(p)).append('\n');
+        }
+        assertThat(text.toString()).contains("Lebensmittel").contains("Obst und Gemüse").contains("Haushalt");
     }
 }

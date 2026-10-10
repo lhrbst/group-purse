@@ -53,9 +53,10 @@ public class ReportController {
                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bis,
                                              @RequestParam(required = false) UUID person,
                                              @RequestParam(required = false) String bewohner,
-                                             @RequestParam(required = false) UUID kategorie) {
+                                             @RequestParam(required = false) UUID kategorie,
+                                             @RequestParam(defaultValue = "UNTER") String ebene) {
         access.requireKassenverwalter();
-        return reports.expensesByCategoryAndMonth(from(von), to(bis), person, bewohner, kategorie);
+        return reports.expensesByCategoryAndMonth(from(von), to(bis), person, bewohner, kategorie, "HAUPT".equalsIgnoreCase(ebene));
     }
 
     @GetMapping("/reports/income-vs-expense")
