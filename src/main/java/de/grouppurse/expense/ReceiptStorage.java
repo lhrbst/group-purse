@@ -71,7 +71,7 @@ public class ReceiptStorage {
     }
 
     /** Erkennung am Dateikopf statt am vom Client gemeldeten Typ. */
-    static String detectExtension(byte[] b) {
+    public static String detectExtension(byte[] b) {
         if (b.length >= 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF) {
             return "jpg";
         }
