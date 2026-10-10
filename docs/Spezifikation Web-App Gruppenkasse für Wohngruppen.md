@@ -400,6 +400,15 @@ Diese Entscheidungen ergänzen die Spezifikation und haben bei Widersprüchen Vo
 - Auswertungen, PDF und CSV arbeiten mit den Positionen; Auswertungen lassen sich nach Haupt- oder Unterkategorie darstellen. Ein Kategoriefilter auf eine Hauptkategorie schließt ihre Unterkategorien ein.
 - Neue Tabelle `buchung_position`; Spalte `parent_id` an den Kategorietabellen. Bestehende Ausgaben bekommen bei der Migration eine Position über den vollen Betrag.
 
+### Begriff „Teammitglied“ (10.10.2026)
+
+In der App heißt die Rolle der Einkaufenden **Teammitglied** statt „Pflegekraft“, weil auch Assistenzkräfte oder andere Personen einkaufen. Wo die Spezifikation „Pflegekraft“ schreibt, ist das Teammitglied gemeint. Die technische Bezeichnung der Rolle (`pflegekraft`) bleibt in Code und Datenbank unverändert.
+
+### Zurückgestellt (10.10.2026)
+
+- **Export für die Kassenprüfung** (Jahresabschluss als PDF, Buchungen als CSV, ZIP der Belegfotos) ist in Version 1 entfernt. Die Funktion fehlt im Funktionsumfang, bis sie wieder gebraucht und getestet wird.
+- Das optionale Feld **Bewohner** an Ausgaben (und der Bewohner-Filter in den Auswertungen) entfällt. Die Familien behalten ihr Bewohnerkürzel.
+
 ### Technische Festlegungen
 
 - Modellnamen für die Belegerkennung sind Konfiguration; die KI-Erkennung ist abschaltbar (dann manuelle Eingabe).

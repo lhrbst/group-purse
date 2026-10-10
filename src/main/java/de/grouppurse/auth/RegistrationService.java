@@ -17,7 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.Locale;
 
-/** Selbstregistrierung von Pflegekräften per Beitrittscode. */
+/** Selbstregistrierung von Teammitgliedern per Beitrittscode. */
 @Service
 public class RegistrationService {
     private final PersonRepository people;

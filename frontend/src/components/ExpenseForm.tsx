@@ -50,7 +50,6 @@ export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, sub
       datum: todayIso(),
       haendler: '',
       zweck: '',
-      bewohnerKuerzel: '',
       begruendungOhneBeleg: '',
       ...initial,
       positionen: initial?.positionen?.length ? initial.positionen : [newPosition()],
@@ -122,7 +121,6 @@ export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, sub
       positionen: v.positionen.map((p) => ({ kategorieId: p.kategorieId, betrag: Math.round(parseAmount(p.betrag) * 100) / 100 })),
       haendler: v.haendler.trim() || undefined,
       zweck: v.zweck.trim() || undefined,
-      bewohnerKuerzel: v.bewohnerKuerzel.trim() || undefined,
       begruendungOhneBeleg: photos.length + existingPhotos === 0 ? v.begruendungOhneBeleg.trim() : undefined,
     };
     try {
@@ -232,7 +230,6 @@ export function ExpenseForm({ mode, initial, existingPhotos = 0, existingId, sub
         <DateInput label="Datum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} required {...form.getInputProps('datum')} />
         <TextInput label="Händler" {...form.getInputProps('haendler')} />
         <TextInput label="Zweck" placeholder="z. B. Einkauf Wochenende" {...form.getInputProps('zweck')} />
-        <TextInput label="Bewohner (Kürzel, optional)" description="Nur wenn die Ausgabe einer Person zugeordnet werden soll" {...form.getInputProps('bewohnerKuerzel')} />
 
         {noPhoto && (
           <Textarea

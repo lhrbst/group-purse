@@ -32,7 +32,6 @@ function ExpenseCard({ b, categories, onApprove, onDialog }: {
           <Text fw={600}>{b.haendler || b.zweck || ART_LABEL[b.art ?? ''] || 'Ausgabe'}</Text>
           <Text size="sm" c="dimmed">
             {formatDate(b.datum)} · Nr. {b.nummer} · {b.erfasstVonName}
-            {b.bewohnerKuerzel ? ` · Bewohner ${b.bewohnerKuerzel}` : ''}
           </Text>
           {b.zweck && b.haendler && <Text size="sm">{b.zweck}</Text>}
           <Text size="sm">{describePositions(b.positionen, (id) => categories.get(id ?? '') ?? 'Kategorie')}</Text>
@@ -177,7 +176,7 @@ export function ReviewListPage() {
         opened={dialog !== null}
         onClose={() => setDialog(null)}
         title={dialog?.kind === 'reject' ? 'Ausgabe ablehnen' : 'Ausgabe stornieren'}
-        label={dialog?.kind === 'reject' ? 'Kommentar an die Pflegekraft' : 'Begründung (wird im Kassenbuch festgehalten)'}
+        label={dialog?.kind === 'reject' ? 'Kommentar an die erfassende Person' : 'Begründung (wird im Kassenbuch festgehalten)'}
         confirmLabel={dialog?.kind === 'reject' ? 'Ablehnen' : 'Stornieren'}
         color="red"
         onConfirm={confirm}

@@ -43,9 +43,9 @@ export function MembersPage() {
       <Card withBorder>
         <Group justify="space-between">
           <div>
-            <Text c="dimmed" size="sm">Beitrittscode für Pflegekräfte</Text>
+            <Text c="dimmed" size="sm">Beitrittscode für Teammitglieder</Text>
             <Title order={3} ff="monospace">{code ?? '–'}</Title>
-            <Text size="xs" c="dimmed">Pflegekräfte geben ihn bei der Registrierung ein und warten dann auf deine Freischaltung.</Text>
+            <Text size="xs" c="dimmed">Teammitglieder geben ihn bei der Registrierung ein und warten dann auf deine Freischaltung.</Text>
           </div>
           <Group>
             {code && (

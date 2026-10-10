@@ -127,14 +127,7 @@ class EndToEndScenarioTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/me/active-group").with(csrf()).session(pk).contentType(JSON)
                 .content("{\"wohngruppeId\":\"" + other.id + "\"}")).andExpect(status().isForbidden());
 
-        // 9. Export für die Kassenprüfung
-        String csv = new String(mvc.perform(get("/api/export/bookings.csv?jahr=" + LocalDate.now().getYear()).session(kv))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray(), StandardCharsets.UTF_8);
-        assertThat(csv).contains("AUSGABE;-28,50;").contains("AUFFUELLUNG;100,00;").contains("ANFANGSBESTAND;1000,00;");
-        mvc.perform(get("/api/export/annual-report.pdf?jahr=" + LocalDate.now().getYear()).session(kv)).andExpect(status().isOk());
-
-        // 10. Die Pflegekraft darf die Verwaltung nicht benutzen
-        mvc.perform(get("/api/export/bookings.csv?jahr=" + LocalDate.now().getYear()).session(pk)).andExpect(status().isForbidden());
+        // 9. Die Pflegekraft darf die Verwaltung nicht benutzen
         mvc.perform(put("/api/group/settings").with(csrf()).session(pk).contentType(JSON).content("{\"mindestbetragKasse\":1}")).andExpect(status().isForbidden());
     }
 }

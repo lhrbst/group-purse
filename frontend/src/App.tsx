@@ -18,7 +18,6 @@ import { ContributionsPage } from './pages/manager/ContributionsPage';
 import { ReportsPage } from './pages/manager/ReportsPage';
 import { MembersPage } from './pages/manager/MembersPage';
 import { SettingsPage } from './pages/manager/SettingsPage';
-import { ExportPage } from './pages/manager/ExportPage';
 import { AdminGroupsPage } from './pages/admin/AdminGroupsPage';
 
 function RequireLogin({ children }: { children: ReactNode }) {
@@ -61,7 +60,6 @@ export function App() {
         <Route path="auswertungen" element={<RequireRole roles={['manager']}><ReportsPage /></RequireRole>} />
         <Route path="mitglieder" element={<RequireRole roles={['manager']}><MembersPage /></RequireRole>} />
         <Route path="einstellungen" element={<RequireRole roles={['manager']}><SettingsPage /></RequireRole>} />
-        <Route path="export" element={<RequireRole roles={['manager']}><ExportPage /></RequireRole>} />
         <Route path="admin" element={<RequireRole roles={['admin']}><AdminGroupsPage /></RequireRole>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

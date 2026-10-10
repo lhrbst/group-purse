@@ -31,7 +31,7 @@ export const KONTO_LABEL: Record<string, string> = {
 
 export const ROLLE_LABEL: Record<string, string> = {
   KASSENVERWALTER: 'Kassenverwalter',
-  PFLEGEKRAFT: 'Pflegekraft',
+  PFLEGEKRAFT: 'Teammitglied',
 };
 
 export const MEMBER_STATUS_LABEL: Record<string, string> = {

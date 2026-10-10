@@ -31,7 +31,7 @@ public final class LedgerDtos {
     public record BestandResponse(BigDecimal soll, BigDecimal ist, BigDecimal differenz, BuchungDto buchung) {
     }
 
-    /** vereinskonto ist für Pflegekräfte null. */
+    /** vereinskonto ist für Teammitglieder null. */
     public record BalanceDto(BigDecimal barkasse, BigDecimal vereinskonto, BigDecimal mindestbetrag, boolean warnung, boolean negativ) {
     }
 }

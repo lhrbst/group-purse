@@ -132,7 +132,7 @@ function AuffuellungForm({ onClose }: { onClose: () => void }) {
         <Text size="sm" c="dimmed">Bucht den Betrag vom Vereinskonto ab und in die Barkasse hinein.</Text>
         <TextInput label="Betrag (€)" inputMode="decimal" data-autofocus {...form.getInputProps('betrag')} />
         <DateInput label="Datum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} {...form.getInputProps('datum')} />
-        <TextInput label="Übergeben an" description="Pflegekraft oder „Kasse direkt“" {...form.getInputProps('an')} />
+        <TextInput label="Übergeben an" description="Teammitglied oder „Kasse direkt“" {...form.getInputProps('an')} />
         <Button type="submit" loading={m.isPending}>Auffüllung buchen</Button>
       </Stack>
     </form>

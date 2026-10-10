@@ -89,7 +89,7 @@ public class ExpenseService {
         return saved;
     }
 
-    /** Pflegekraft korrigiert eine abgelehnte Ausgabe und reicht sie erneut ein. */
+    /** Das Teammitglied korrigiert eine abgelehnte Ausgabe und reicht sie erneut ein. */
     @Transactional
     public Buchung resubmit(UUID id, ExpenseInput in, List<MultipartFile> photos) {
         Buchung b = find(id);

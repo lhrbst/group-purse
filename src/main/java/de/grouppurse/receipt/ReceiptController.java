@@ -24,7 +24,7 @@ public class ReceiptController {
         this.recognition = recognition;
     }
 
-    /** 204, wenn die Erkennung aus ist oder nichts lieferte; die Pflegekraft füllt die Felder dann selbst aus. */
+    /** 204, wenn die Erkennung aus ist oder nichts lieferte; die Person füllt die Felder dann selbst aus. */
     @PostMapping(value = "/recognize", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ReceiptSuggestion> recognize(@RequestPart("photo") MultipartFile photo) {
         access.requireActiveMember();

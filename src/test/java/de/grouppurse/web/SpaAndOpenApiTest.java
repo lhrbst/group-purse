@@ -42,8 +42,7 @@ class SpaAndOpenApiTest extends AbstractIntegrationTest {
     @Test
     void openApiDescribesTheApiAndCanBeExported() throws Exception {
         String json = mvc.perform(get("/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertThat(json).contains("/api/expenses").contains("/api/ledger/auffuellung").contains("/api/contributions/grid")
-                .contains("/api/export/annual-report.pdf");
+        assertThat(json).contains("/api/expenses").contains("/api/ledger/auffuellung").contains("/api/contributions/grid");
         String out = System.getProperty("openapi.out");
         if (out != null) {
             Path p = Path.of(out).toAbsolutePath();

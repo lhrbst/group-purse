@@ -3,7 +3,6 @@ export * from './auth-controller/auth-controller';
 export * from './category-controller/category-controller';
 export * from './contribution-controller/contribution-controller';
 export * from './expense-controller/expense-controller';
-export * from './export-controller/export-controller';
 export * from './ledger-controller/ledger-controller';
 export * from './member-controller/member-controller';
 export * from './receipt-controller/receipt-controller';

@@ -1,7 +1,7 @@
 # Gruppenkasse
 
-Web-App (PWA) für die Gruppenkasse eines Elternvereins: Elternbeiträge pro Familie und Monat, Barausgaben der Pflegekräfte per Belegfoto,
-lückenloses Kassenbuch für Barkasse und Vereinskonto, Auswertungen und Export für die Kassenprüfung. Mehrere Wohngruppen sind strikt getrennt.
+Web-App (PWA) für die Gruppenkasse eines Elternvereins: Elternbeiträge pro Familie und Monat, Barausgaben des Teams per Belegfoto,
+lückenloses Kassenbuch für Barkasse und Vereinskonto, Auswertungen. Mehrere Wohngruppen sind strikt getrennt.
 
 Vollständige Anforderungen: [`docs/Spezifikation Web-App Gruppenkasse für Wohngruppen.md`](docs/Spezifikation%20Web-App%20Gruppenkasse%20f%C3%BCr%20Wohngruppen.md)
 (der Abschnitt „Entscheidungen zur Umsetzung“ hat Vorrang). Betrieb und Einrichtung: [`docs/betrieb.md`](docs/betrieb.md).
@@ -12,8 +12,8 @@ Der Umsetzungsplan liegt in `docs/superpowers/plans/`.
 | Rolle | Kann |
 | --- | --- |
 | **Admin** (global) | alles in allen Wohngruppen; legt als Einziger Wohngruppen an und lädt Kassenverwalter ein. Wird einmalig per SQL angelegt. |
-| **Kassenverwalter** (je Wohngruppe) | Beiträge und Kassenbuch führen, Ausgaben prüfen, Pflegekräfte freischalten, Auswertungen, Export |
-| **Pflegekraft** (je Wohngruppe) | Belege erfassen, eigene Ausgaben sehen, Kassenstand sehen |
+| **Kassenverwalter** (je Wohngruppe) | Beiträge und Kassenbuch führen, Ausgaben prüfen, Teammitglieder freischalten, Auswertungen |
+| **Teammitglied** (je Wohngruppe; Pflege- und Assistenzkräfte oder wer sonst einkauft) | Belege erfassen, eigene Ausgaben sehen, Kassenstand sehen |
 
 Eltern haben keinen Zugang.
 
@@ -69,5 +69,5 @@ Alles über Umgebungsvariablen, siehe `src/main/resources/application.yml` und `
 
 ## Bewusst nicht enthalten (Version 1)
 
-E-Mail- und Push-Benachrichtigungen (Hinweise erscheinen nur in der App), Bankabgleich, Erstattung privater Auslagen, Gruppenkarten, Verwaltung der Bewohner-Barbeträge, Kassensturz mit zwei Personen, Staging-Umgebung und **Backups**
+E-Mail- und Push-Benachrichtigungen (Hinweise erscheinen nur in der App), Export (PDF/CSV/ZIP), Bankabgleich, Erstattung privater Auslagen, Gruppenkarten, Verwaltung der Bewohner-Barbeträge, Kassensturz mit zwei Personen, Staging-Umgebung und **Backups**
 (siehe Hinweis in `docs/betrieb.md`).

@@ -13,7 +13,6 @@ export interface ExpenseFormValues {
   positionen: PositionValues[];
   haendler: string;
   zweck: string;
-  bewohnerKuerzel: string;
   begruendungOhneBeleg: string;
 }
 
@@ -33,7 +32,6 @@ export const expenseSchema = z.object({
     .min(1, 'Mindestens eine Position nötig'),
   haendler: z.string(),
   zweck: z.string(),
-  bewohnerKuerzel: z.string(),
   begruendungOhneBeleg: z.string(),
 });
 

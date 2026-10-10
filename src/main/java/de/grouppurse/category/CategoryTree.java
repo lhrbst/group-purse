@@ -27,15 +27,6 @@ public final class CategoryTree {
         return name(mainId(id));
     }
 
-    /** "Lebensmittel › Obst und Gemüse" bzw. nur der Name bei Hauptkategorien. */
-    public String path(UUID id) {
-        CategoryDto c = id == null ? null : byId.get(id);
-        if (c == null || c.parentId() == null) {
-            return name(id);
-        }
-        return name(c.parentId()) + " › " + c.name();
-    }
-
     public boolean isSameOrChildOf(UUID id, UUID ancestor) {
         if (id == null || ancestor == null) {
             return false;

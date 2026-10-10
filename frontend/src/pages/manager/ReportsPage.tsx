@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BarChart, LineChart } from '@mantine/charts';
-import { Card, Group, Select, SegmentedControl, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Card, Group, Select, SegmentedControl, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useCategoryList } from '../../api/generated/category-controller/category-controller';
 import { useMemberList } from '../../api/generated/member-controller/member-controller';
@@ -15,7 +15,6 @@ export function ReportsPage() {
   const [bis, setBis] = useState<string | null>(todayIso());
   const [person, setPerson] = useState<string | null>(null);
   const [kategorie, setKategorie] = useState<string | null>(null);
-  const [bewohner, setBewohner] = useState('');
   const [konto, setKonto] = useState('BARKASSE');
   const [ebene, setEbene] = useState('UNTER');
 
@@ -24,7 +23,6 @@ export function ReportsPage() {
     ...range,
     ...(person ? { person } : {}),
     ...(kategorie ? { kategorie } : {}),
-    ...(bewohner.trim() ? { bewohner: bewohner.trim() } : {}),
     ebene: ebene as 'UNTER',
   });
   const income = useReportIncomeVsExpense(range);
@@ -38,11 +36,11 @@ export function ReportsPage() {
   return (
     <Stack>
       <Title order={2}>Auswertungen</Title>
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }}>
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         <DateInput label="Von" valueFormat="DD.MM.YYYY" value={von} onChange={setVon} />
         <DateInput label="Bis" valueFormat="DD.MM.YYYY" value={bis} onChange={setBis} />
         <Select
-          label="Pflegekraft"
+          label="Erfasst von"
           clearable
           placeholder="Alle"
           data={members.data?.status === 200 ? members.data.data.map((m) => ({ value: m.personId!, label: m.name ?? '' })) : []}
@@ -57,7 +55,6 @@ export function ReportsPage() {
           value={kategorie}
           onChange={setKategorie}
         />
-        <TextInput label="Bewohner (Kürzel)" value={bewohner} onChange={(e) => setBewohner(e.currentTarget.value)} />
       </SimpleGrid>
 
       <Card withBorder>

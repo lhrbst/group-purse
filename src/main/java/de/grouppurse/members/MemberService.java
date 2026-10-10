@@ -69,7 +69,7 @@ public class MemberService {
         return dto(m);
     }
 
-    /** Einmaliger Link zum Setzen eines neuen Passworts; Kassenverwalter dürfen das nur für Pflegekräfte. */
+    /** Einmaliger Link zum Setzen eines neuen Passworts; Kassenverwalter dürfen das nur für Teammitglieder. */
     @Transactional
     public String passwordLink(UUID wohngruppeId, UUID mitgliedschaftId) {
         Mitgliedschaft m = target(wohngruppeId, mitgliedschaftId);

@@ -27,7 +27,7 @@ export function RegisterPage() {
   });
 
   return (
-    <AuthShell title="Registrieren" subtitle="Für Pflegekräfte: mit dem Beitrittscode deiner Wohngruppe">
+    <AuthShell title="Registrieren" subtitle="Für Teammitglieder: mit dem Beitrittscode deiner Wohngruppe">
       <form
         onSubmit={form.onSubmit(async (v) => {
           try {

@@ -8,7 +8,6 @@ const base = {
   positionen: [pos('obst', '8,40'), pos('haushalt', '4,99')],
   haendler: '',
   zweck: '',
-  bewohnerKuerzel: '',
   begruendungOhneBeleg: '',
 };
 

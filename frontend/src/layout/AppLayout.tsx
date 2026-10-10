@@ -1,6 +1,6 @@
 import { ActionIcon, AppShell, Burger, Group, Menu, NavLink, Text, useMantineColorScheme, Badge } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { NavLink as RouterLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink as RouterLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useAuthLogout } from '../api/generated/auth-controller/auth-controller';
 import { useReportManager } from '../api/generated/report-controller/report-controller';
@@ -26,13 +26,11 @@ const MANAGER_NAV: NavItem[] = [
   { to: '/auswertungen', label: 'Auswertungen' },
   { to: '/mitglieder', label: 'Mitglieder' },
   { to: '/einstellungen', label: 'Einstellungen' },
-  { to: '/export', label: 'Export' },
 ];
 
 export function AppLayout() {
   const [opened, { toggle, close }] = useDisclosure();
-  const { me, isAdmin, isManager, isCaregiver, reset } = useAuth();
-  const navigate = useNavigate();
+  const { me, isAdmin, isManager, isCaregiver } = useAuth();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const logout = useAuthLogout();
   const dashboard = useReportManager({ query: { enabled: isManager } });
@@ -42,9 +40,12 @@ export function AppLayout() {
   if (isAdmin) items.push({ to: '/admin', label: 'Wohngruppen (Admin)' });
 
   async function signOut() {
-    await logout.mutateAsync();
-    await reset();
-    navigate('/login');
+    try {
+      await logout.mutateAsync();
+    } finally {
+      // komplett neu laden: verwirft alle Daten und zeigt keine Fehler alter Abfragen
+      window.location.assign('/login');
+    }
   }
 
   return (

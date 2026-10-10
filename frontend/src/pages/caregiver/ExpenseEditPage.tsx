@@ -40,7 +40,6 @@ export function ExpenseEditPage() {
           positionen: positions.length > 0 ? positions : undefined,
           haendler: b.haendler ?? '',
           zweck: b.zweck ?? '',
-          bewohnerKuerzel: b.bewohnerKuerzel ?? '',
           begruendungOhneBeleg: b.begruendungOhneBeleg ?? '',
         }}
         submitLabel="Neu einreichen"
