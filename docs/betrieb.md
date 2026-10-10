@@ -25,13 +25,14 @@
 | `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Schlüssel für Web-Push: `npx web-push generate-vapid-keys`; Subject z. B. `mailto:kasse@deinverein.de` |
 
 6. **Push auf `main`** startet die Pipeline: Tests, Image bauen, auf den Server kopieren und starten.
-7. **Ersten Admin anlegen:** Über die Seite `/registrieren` geht nur mit Beitrittscode. Deshalb den ersten Admin einmal direkt in der Datenbank anlegen
-   (Passwort-Hash mit BCrypt, z. B. mit `htpasswd -bnBC 10 "" 'DEIN-PASSWORT' | tr -d ':\n'`):
+7. **Ersten Admin anlegen:** Die Seite `/registrieren` geht nur mit Beitrittscode. Deshalb den ersten Admin einmal direkt in der Datenbank anlegen.
+   Das Passwort wird dabei mit `pgcrypto` gehasht (kompatibel mit dem BCrypt der App):
 
 ```sql
 -- auf dem Server: docker compose -f /opt/gruppenkasse/docker-compose.yml exec db psql -U grouppurse grouppurse
+create extension if not exists pgcrypto;
 insert into person (id, name, email, passwort_hash, ist_admin, datenschutz_zugestimmt_am)
-values (gen_random_uuid(), 'Dein Name', 'du@deinverein.de', '$2y$10$...HASH...', true, now());
+values (gen_random_uuid(), 'Dein Name', 'du@deinverein.de', crypt('DEIN-LANGES-PASSWORT', gen_salt('bf', 10)), true, now());
 ```
 
    Hat die Person schon ein Konto, genügt: `update person set ist_admin = true where email = 'du@deinverein.de';`
