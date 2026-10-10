@@ -19,7 +19,7 @@ public final class AdminDtos {
     public record InviteRequest(@NotBlank @Email String email) {
     }
 
-    public record InviteResponse(boolean mailVersendet, String link) {
+    public record InviteResponse(String link) {
     }
 
     public record InvitationInfo(String email, String wohngruppeName, boolean kontoExistiert) {

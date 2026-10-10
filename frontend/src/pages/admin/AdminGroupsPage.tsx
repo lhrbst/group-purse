@@ -24,9 +24,7 @@ function InviteDialog({ group, onClose }: { group: WohngruppeDto; onClose: () =>
   if (result) {
     return (
       <Stack>
-        <Alert color={result.mailVersendet ? 'green' : 'orange'}>
-          {result.mailVersendet ? 'Die Einladung wurde per E-Mail verschickt.' : 'Die E-Mail konnte nicht versendet werden. Gib den Link bitte selbst weiter.'}
-        </Alert>
+        <Alert color="green">Einladung erzeugt. Gib den Link der Person weiter, z. B. per Messenger.</Alert>
         <Text size="sm">Einladungslink (7 Tage gültig):</Text>
         <Text size="xs" ff="monospace" style={{ wordBreak: 'break-all' }}>{result.link}</Text>
         <Group justify="flex-end">

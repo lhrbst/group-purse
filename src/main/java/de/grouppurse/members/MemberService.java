@@ -1,5 +1,7 @@
 package de.grouppurse.members;
 
+import de.grouppurse.audit.AuditService;
+import de.grouppurse.auth.PasswordResetService;
 import de.grouppurse.domain.MitgliedStatus;
 import de.grouppurse.domain.Mitgliedschaft;
 import de.grouppurse.domain.Person;
@@ -25,11 +27,16 @@ public class MemberService {
     private final MitgliedschaftRepository members;
     private final PersonRepository people;
     private final CurrentUser user;
+    private final PasswordResetService resets;
+    private final AuditService audit;
 
-    public MemberService(MitgliedschaftRepository members, PersonRepository people, CurrentUser user) {
+    public MemberService(MitgliedschaftRepository members, PersonRepository people, CurrentUser user,
+                         PasswordResetService resets, AuditService audit) {
         this.members = members;
         this.people = people;
         this.user = user;
+        this.resets = resets;
+        this.audit = audit;
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +67,15 @@ public class MemberService {
         }
         m.status = MitgliedStatus.GESPERRT;
         return dto(m);
+    }
+
+    /** Einmaliger Link zum Setzen eines neuen Passworts; Kassenverwalter dürfen das nur für Pflegekräfte. */
+    @Transactional
+    public String passwordLink(UUID wohngruppeId, UUID mitgliedschaftId) {
+        Mitgliedschaft m = target(wohngruppeId, mitgliedschaftId);
+        String link = resets.createLink(m.personId);
+        audit.log("Passwort-Link erzeugt", "Person", m.personId, null, null);
+        return link;
     }
 
     private Mitgliedschaft target(UUID wohngruppeId, UUID id) {

@@ -5,6 +5,7 @@ import de.grouppurse.admin.WohngruppeService;
 import de.grouppurse.domain.Rolle;
 import de.grouppurse.domain.Wohngruppe;
 import de.grouppurse.members.MemberDtos.CodeResponse;
+import de.grouppurse.members.MemberDtos.LinkResponse;
 import de.grouppurse.members.MemberDtos.MemberDto;
 import de.grouppurse.members.MemberDtos.SettingsRequest;
 import de.grouppurse.repo.WohngruppeRepository;
@@ -53,6 +54,12 @@ public class MemberController {
     public MemberDto block(@PathVariable UUID id) {
         access.requireKassenverwalter();
         return members.block(access.requireGroup(), id);
+    }
+
+    @PostMapping("/members/{id}/passwort-link")
+    public LinkResponse passwordLink(@PathVariable UUID id) {
+        access.requireKassenverwalter();
+        return new LinkResponse(members.passwordLink(access.requireGroup(), id));
     }
 
     @GetMapping("/group")

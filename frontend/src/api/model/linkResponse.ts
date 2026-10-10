@@ -5,6 +5,6 @@
  * OpenAPI spec version: v0
  */
 
-export interface PublicKey {
-  publicKey?: string;
+export interface LinkResponse {
+  link?: string;
 }

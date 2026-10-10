@@ -4,7 +4,6 @@ import de.grouppurse.auth.AuthDtos.ActiveGroupRequest;
 import de.grouppurse.auth.AuthDtos.LoginRequest;
 import de.grouppurse.auth.AuthDtos.MeDto;
 import de.grouppurse.auth.AuthDtos.PasswordResetConfirm;
-import de.grouppurse.auth.AuthDtos.PasswordResetRequest;
 import de.grouppurse.domain.Person;
 import de.grouppurse.repo.PersonRepository;
 import de.grouppurse.security.CurrentUser;
@@ -93,16 +92,6 @@ public class AuthController {
         }
         req.getSession(true).setAttribute(CurrentUser.ACTIVE_GROUP, r.wohngruppeId());
         return auth.me();
-    }
-
-    @PostMapping("/auth/password-reset/request")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void requestReset(@Valid @RequestBody PasswordResetRequest r) {
-        try {
-            resets.request(r.email());
-        } catch (RuntimeException e) {
-            // Antwort darf nicht verraten, ob die Adresse existiert oder der Mailversand klappt
-        }
     }
 
     @PostMapping("/auth/password-reset/confirm")

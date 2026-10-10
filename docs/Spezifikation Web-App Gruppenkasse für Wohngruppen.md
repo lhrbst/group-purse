@@ -368,9 +368,9 @@ Diese Entscheidungen ergänzen die Spezifikation und haben bei Widersprüchen Vo
 ### Rollen und Zugang
 
 - **Admin:** globale Rolle (Feld `ist_admin` an Person), sieht und darf alles in allen Wohngruppen. Nur der Admin legt Wohngruppen an und ernennt Kassenverwalter. Der erste Admin wird initial per SQL direkt in der Datenbank gesetzt.
-- **Keine offene Registrierung für Wohngruppen.** Kassenverwalter werden vom Admin per Einladungslink (Token, 7 Tage gültig) angelegt; hat die Person schon ein Konto, wird nur die Mitgliedschaft ergänzt. Kassenverwalter laden keine weiteren Kassenverwalter ein.
+- **Keine offene Registrierung für Wohngruppen.** Kassenverwalter werden vom Admin per Einladungslink (Token, 7 Tage gültig, wird dem Admin angezeigt und von ihm weitergegeben) angelegt; hat die Person schon ein Konto, wird nur die Mitgliedschaft ergänzt. Kassenverwalter laden keine weiteren Kassenverwalter ein.
 - Pflegekräfte registrieren sich weiterhin selbst mit Beitrittscode und landen als „wartend“.
-- Passwort-Reset per E-Mail-Link. Keine E-Mail-Verifikation in Version 1.
+- Passwort-Reset ohne E-Mail: Ein Kassenverwalter (für Pflegekräfte) bzw. der Admin erzeugt einen einmaligen Link (24 Stunden gültig) und gibt ihn persönlich weiter.
 
 ### Geld und Buchungen
 
@@ -388,17 +388,17 @@ Diese Entscheidungen ergänzen die Spezifikation und haben bei Widersprüchen Vo
 - Familie: `faelligkeitstag`
 - Buchung: `begruendung_ohne_beleg`, `ablehnungs_kommentar`, `geprueft_von`, `geprueft_am`, `verknuepft_mit` (Gegenbuchung)
 - Person: `ist_admin`
-- Neue Tabellen: Einladung (Token, E-Mail, Wohngruppe, Rolle, gültig bis), Passwort-Reset-Token, Push-Subscription
+- Neue Tabellen: Einladung (Token, E-Mail, Wohngruppe, Rolle, gültig bis), Passwort-Reset-Token
 
 ### Technische Festlegungen
 
 - Modellnamen für die Belegerkennung sind Konfiguration; die KI-Erkennung ist abschaltbar (dann manuelle Eingabe).
-- E-Mail über generisches SMTP, Zugangsdaten aus der `.env`.
+- **Keine E-Mails und keine Push-Benachrichtigungen** (nachträglich entfernt, 10.10.2026): Die App verschickt nichts. Die Warnung bei niedrigem Kassenstand erscheint nur als Hinweis in der App (Startseite von Kassenverwalter und Pflegekraft). Es gibt keine Erinnerungs-Mails an Familien; die Kontaktadresse der Familie ist nur ein Datenfeld.
 - Domain aus der Konfiguration; `kasse.deinverein.de` ist ein Platzhalter.
 - Belegfotos als WebP, wenn der Browser es kann, sonst JPEG.
 - PDF-Export mit OpenPDF.
 - Oberfläche nur auf Deutsch.
-- In Version 1: Erinnerungs-Mail an Familien, Web-Push. Nicht in Version 1: Staging-Umgebung.
+- Nicht in Version 1: Staging-Umgebung, E-Mail- und Push-Benachrichtigungen.
 
 ## Nicht im Umfang und offene Fragen
 

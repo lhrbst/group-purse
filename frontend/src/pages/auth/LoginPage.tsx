@@ -47,9 +47,9 @@ export function LoginPage() {
           <Button type="submit" loading={login.isPending}>
             Anmelden
           </Button>
-          <Anchor component={Link} to="/passwort-vergessen" size="sm">
-            Passwort vergessen?
-          </Anchor>
+          <Text size="sm" c="dimmed">
+            Passwort vergessen? Dein Kassenverwalter kann dir einen Link zum Zurücksetzen geben.
+          </Text>
           <Text size="sm">
             Neu in einer Wohngruppe?{' '}
             <Anchor component={Link} to="/registrieren">

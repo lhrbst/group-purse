@@ -17,12 +17,9 @@
 | `SSH_KEY` | Inhalt der Datei `deploy_key` (privater Schlüssel) |
 | `DOMAIN` | z. B. `kasse.deinverein.de` |
 | `DB_PASSWORD` | langes Zufallspasswort (`openssl rand -base64 32`) |
-| `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Zugang zum Mail-Dienst |
-| `SMTP_AUTH`, `SMTP_STARTTLS` | `true`/`false` je nach Dienst |
 | `OPENAI_API_KEY` | API-Schlüssel (nur nötig, wenn die Belegerkennung an ist) |
 | `RECEIPT_AI_ENABLED` | `true` oder `false` |
 | `RECEIPT_MODEL`, `RECEIPT_FALLBACK_MODEL` | Modellnamen, Standard `gpt-6-luna` / `gpt-6.1-sol` |
-| `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Schlüssel für Web-Push: `npx web-push generate-vapid-keys`; Subject z. B. `mailto:kasse@deinverein.de` |
 
 6. **Push auf `main`** startet die Pipeline: Tests, Image bauen, auf den Server kopieren und starten.
 7. **Ersten Admin anlegen:** Die Seite `/registrieren` geht nur mit Beitrittscode. Deshalb den ersten Admin einmal direkt in der Datenbank anlegen.
@@ -36,7 +33,7 @@ values (gen_random_uuid(), 'Dein Name', 'du@deinverein.de', crypt('DEIN-LANGES-P
 ```
 
    Hat die Person schon ein Konto, genügt: `update person set ist_admin = true where email = 'du@deinverein.de';`
-   Danach legt der Admin unter *Wohngruppen* die Gruppen an und lädt die Kassenverwalter per E-Mail ein.
+   Danach legt der Admin unter *Wohngruppen* die Gruppen an und erzeugt für jeden Kassenverwalter einen Einladungslink und gibt ihn persönlich weiter.
 
 ## Alltag
 
@@ -49,6 +46,9 @@ values (gen_random_uuid(), 'Dein Name', 'du@deinverein.de', crypt('DEIN-LANGES-P
 - **Zertifikate:** Caddy holt und erneuert sie automatisch. Das Volume `caddy_data` darf nicht gelöscht werden. Beim ersten Ausprobieren in der Caddyfile
   `acme_ca https://acme-staging-v02.api.letsencrypt.org/directory` im globalen Block eintragen und danach wieder entfernen.
 - **Überwachung:** Einen kostenlosen Uptime-Dienst auf `https://DOMAIN/actuator/health` einrichten, der bei Ausfall per E-Mail meldet.
+- **Passwort vergessen:** Es werden keine E-Mails verschickt. Ein Kassenverwalter erzeugt unter *Mitglieder → Passwort-Link* einen einmaligen Link (24 Stunden gültig)
+  und gibt ihn der Person weiter. Für Kassenverwalter selbst geht das nur über den Admin; ein vergessenes Admin-Passwort setzt man per SQL zurück
+  (`update person set passwort_hash = crypt('NEUES-PASSWORT', gen_salt('bf', 10)) where email = '…';`).
 - **Updates der Abhängigkeiten** kommen wöchentlich als Dependabot-Pull-Requests.
 
 ## Wichtig: keine Backups in Version 1

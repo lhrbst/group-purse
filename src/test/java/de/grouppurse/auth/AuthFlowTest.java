@@ -7,16 +7,10 @@ import de.grouppurse.domain.Person;
 import de.grouppurse.domain.Rolle;
 import de.grouppurse.domain.Wohngruppe;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockHttpSession;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -108,33 +102,6 @@ class AuthFlowTest extends AbstractIntegrationTest {
         MockHttpSession s = t.login(p.email);
         mvc.perform(post("/api/auth/logout").with(csrf()).session(s)).andExpect(status().isNoContent());
         mvc.perform(get("/api/me").session(s)).andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void passwordResetFlow() throws Exception {
-        Person p = t.person("reset", false);
-        mvc.perform(post("/api/auth/password-reset/request").with(csrf()).contentType("application/json")
-                .content("{\"email\":\"" + p.email + "\"}")).andExpect(status().isNoContent());
-
-        ArgumentCaptor<String> text = ArgumentCaptor.forClass(String.class);
-        verify(mailService).send(eq(p.email), anyString(), text.capture());
-        Matcher m = Pattern.compile("/passwort-neu/(\\S+)").matcher(text.getValue());
-        assertThat(m.find()).isTrue();
-        String token = m.group(1);
-
-        String confirm = "{\"token\":\"" + token + "\",\"newPassword\":\"neues-passwort-99\"}";
-        mvc.perform(post("/api/auth/password-reset/confirm").with(csrf()).contentType("application/json").content(confirm))
-                .andExpect(status().isNoContent());
-        mvc.perform(post("/api/auth/password-reset/confirm").with(csrf()).contentType("application/json").content(confirm))
-                .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/auth/login").with(csrf()).contentType("application/json").content(loginJson(p.email, "neues-passwort-99")))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void resetForUnknownEmailStill204() throws Exception {
-        mvc.perform(post("/api/auth/password-reset/request").with(csrf()).contentType("application/json")
-                .content("{\"email\":\"niemand@example.org\"}")).andExpect(status().isNoContent());
     }
 
     @Test

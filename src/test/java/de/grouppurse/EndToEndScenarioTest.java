@@ -12,9 +12,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -51,7 +48,6 @@ class EndToEndScenarioTest extends AbstractIntegrationTest {
                         .contentType(JSON).content("{\"email\":\"" + kvEmail + "\"}"))
                 .andExpect(status().isOk()).andReturn();
         String link = JsonPath.read(json(invite), "$.link");
-        verify(mailService).send(eq(kvEmail), anyString(), anyString());
         String token = link.substring(link.lastIndexOf('/') + 1);
 
         // 2. Der Kassenverwalter nimmt die Einladung an

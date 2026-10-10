@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Badge, Button, Card, CopyButton, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemberActivate, useMemberBlock, useMemberGroup, useMemberList, useMemberNewCode } from '../../api/generated/member-controller/member-controller';
+import { useMemberActivate, useMemberBlock, useMemberGroup, useMemberList, useMemberNewCode, useMemberPasswordLink } from '../../api/generated/member-controller/member-controller';
 import { useAuth } from '../../auth/AuthProvider';
 import { ActionModal } from '../../components/ActionModal';
 import { LoadError, Loading } from '../../components/Loading';
@@ -19,6 +19,8 @@ export function MembersPage() {
   const block = useMemberBlock();
   const newCode = useMemberNewCode();
   const [confirmCode, setConfirmCode] = useState(false);
+  const passwordLink = useMemberPasswordLink();
+  const [link, setLink] = useState<{ name: string; url: string } | null>(null);
 
   async function run(fn: () => Promise<unknown>, message: string) {
     try {
@@ -81,6 +83,22 @@ export function MembersPage() {
                   <Table.Td><Badge variant="light" color={STATUS_COLOR[m.status ?? '']}>{MEMBER_STATUS_LABEL[m.status ?? '']}</Badge></Table.Td>
                   <Table.Td>
                     <Group justify="flex-end" gap="xs">
+                      {!locked && !self && (
+                        <Button
+                          size="compact-sm"
+                          variant="subtle"
+                          onClick={async () => {
+                            try {
+                              const res = await passwordLink.mutateAsync({ id: m.mitgliedschaftId! });
+                              if (res.status === 200) setLink({ name: m.name ?? '', url: res.data.link ?? '' });
+                            } catch (e) {
+                              notifyError(e);
+                            }
+                          }}
+                        >
+                          Passwort-Link
+                        </Button>
+                      )}
                       {m.status !== 'AKTIV' && !locked && (
                         <Button size="compact-sm" onClick={() => run(() => activate.mutateAsync({ id: m.mitgliedschaftId! }), `${m.name} ist freigeschaltet.`)}>
                           {m.status === 'GESPERRT' ? 'Wieder freischalten' : 'Freischalten'}
@@ -100,6 +118,19 @@ export function MembersPage() {
         </Table>
       </Table.ScrollContainer>
       <Text size="xs" c="dimmed">Ausgeschiedene Personen werden gesperrt, nicht gelöscht. Ihre Belege und Buchungen bleiben erhalten.</Text>
+
+      <ActionModal opened={link !== null} onClose={() => setLink(null)} title={`Passwort zurücksetzen: ${link?.name ?? ''}`}>
+        <Stack>
+          <Text size="sm">Gib diesen Link persönlich an {link?.name} weiter (24 Stunden gültig, nur einmal verwendbar). Damit kann ein neues Passwort gesetzt werden.</Text>
+          <Text size="xs" ff="monospace" style={{ wordBreak: 'break-all' }}>{link?.url}</Text>
+          <Group justify="flex-end">
+            <CopyButton value={link?.url ?? ''}>
+              {({ copied, copy }) => <Button variant="light" onClick={copy}>{copied ? 'Kopiert' : 'Link kopieren'}</Button>}
+            </CopyButton>
+            <Button onClick={() => setLink(null)}>Fertig</Button>
+          </Group>
+        </Stack>
+      </ActionModal>
 
       <ActionModal opened={confirmCode} onClose={() => setConfirmCode(false)} title="Neuen Beitrittscode erzeugen">
         <Stack>

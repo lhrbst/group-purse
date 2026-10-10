@@ -6,7 +6,7 @@ import { RequireRole } from './auth/RequireRole';
 import { AppLayout } from './layout/AppLayout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
-import { ForgotPasswordPage, ResetPasswordPage } from './pages/auth/PasswordPages';
+import { ResetPasswordPage } from './pages/auth/PasswordPages';
 import { InvitationPage } from './pages/auth/InvitationPage';
 import { HomePage } from './pages/HomePage';
 import { ExpenseCapturePage } from './pages/caregiver/ExpenseCapturePage';
@@ -42,7 +42,6 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registrieren" element={<RegisterPage />} />
-      <Route path="/passwort-vergessen" element={<ForgotPasswordPage />} />
       <Route path="/passwort-neu/:token" element={<ResetPasswordPage />} />
       <Route path="/einladung/:token" element={<InvitationPage />} />
       <Route

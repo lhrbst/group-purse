@@ -80,27 +80,16 @@ jobs:
         env:
           DOMAIN: ${{ secrets.DOMAIN }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          MAIL_FROM: ${{ secrets.MAIL_FROM }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          SMTP_AUTH: ${{ secrets.SMTP_AUTH }}
-          SMTP_STARTTLS: ${{ secrets.SMTP_STARTTLS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           RECEIPT_AI_ENABLED: ${{ secrets.RECEIPT_AI_ENABLED }}
           RECEIPT_MODEL: ${{ secrets.RECEIPT_MODEL }}
           RECEIPT_FALLBACK_MODEL: ${{ secrets.RECEIPT_FALLBACK_MODEL }}
-          VAPID_PUBLIC: ${{ secrets.VAPID_PUBLIC }}
-          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
-          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
         run: |
           umask 077
           q() { printf "%s='%s'\n" "$1" "${2//\'/\'\\\'\'}"; }
           {
             q GITHUB_REPOSITORY "${GITHUB_REPOSITORY,,}"
-            for name in DOMAIN DB_PASSWORD MAIL_FROM SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD SMTP_AUTH SMTP_STARTTLS \
-                        OPENAI_API_KEY RECEIPT_AI_ENABLED RECEIPT_MODEL RECEIPT_FALLBACK_MODEL VAPID_PUBLIC VAPID_PRIVATE VAPID_SUBJECT; do
+            for name in DOMAIN DB_PASSWORD OPENAI_API_KEY RECEIPT_AI_ENABLED RECEIPT_MODEL RECEIPT_FALLBACK_MODEL; do
               q "$name" "${!name}"
             done
           } > secrets.env

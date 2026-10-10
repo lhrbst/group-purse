@@ -7,14 +7,11 @@ import de.grouppurse.domain.Buchung;
 import de.grouppurse.domain.BuchungStatus;
 import de.grouppurse.domain.Konto;
 import de.grouppurse.expense.ExpenseDtos.ExpenseInput;
-import de.grouppurse.ledger.BarkasseChanged;
 import de.grouppurse.ledger.BuchungDto;
 import de.grouppurse.ledger.BuchungMapper;
 import de.grouppurse.ledger.LedgerService;
 import de.grouppurse.repo.BuchungRepository;
 import de.grouppurse.security.CurrentUser;
-import de.grouppurse.tenant.TenantContext;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -43,10 +40,9 @@ public class ExpenseService {
     private final AuditService audit;
     private final CurrentUser user;
     private final BuchungMapper mapper;
-    private final ApplicationEventPublisher events;
 
     public ExpenseService(BuchungRepository buchungen, LedgerService ledger, CategoryService categories, ReceiptStorage storage,
-                          AuditService audit, CurrentUser user, BuchungMapper mapper, ApplicationEventPublisher events) {
+                          AuditService audit, CurrentUser user, BuchungMapper mapper) {
         this.buchungen = buchungen;
         this.ledger = ledger;
         this.categories = categories;
@@ -54,7 +50,6 @@ public class ExpenseService {
         this.audit = audit;
         this.user = user;
         this.mapper = mapper;
-        this.events = events;
     }
 
     /** Neue Ausgabe aus der Barkasse. Zieht den Betrag sofort vom Kassenstand ab. */
@@ -94,7 +89,6 @@ public class ExpenseService {
         b.status = BuchungStatus.EINGEREICHT;
         b.ablehnungsKommentar = null;
         audit.log("Ausgabe erneut eingereicht", "Buchung", b.id, before, mapper.toDto(b));
-        events.publishEvent(new BarkasseChanged(TenantContext.get().orElse(null)));
         return b;
     }
 

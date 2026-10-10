@@ -2,7 +2,6 @@ package de.grouppurse.auth;
 
 import de.grouppurse.domain.MitgliedStatus;
 import de.grouppurse.domain.Rolle;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -17,9 +16,6 @@ public final class AuthDtos {
     }
 
     public record ActiveGroupRequest(UUID wohngruppeId) {
-    }
-
-    public record PasswordResetRequest(@NotBlank @Email String email) {
     }
 
     public record PasswordResetConfirm(@NotBlank String token,

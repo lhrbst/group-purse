@@ -6,6 +6,5 @@
  */
 
 export interface InviteResponse {
-  mailVersendet?: boolean;
   link?: string;
 }

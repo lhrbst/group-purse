@@ -15,14 +15,6 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 40MB
-  mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:25}
-    username: ${SMTP_USER:}
-    password: ${SMTP_PASSWORD:}
-    properties:
-      mail.smtp.auth: ${SMTP_AUTH:false}
-      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:disabled}
@@ -37,9 +29,6 @@ server:
   forward-headers-strategy: framework
 
 management:
-  health:
-    mail:
-      enabled: false
   endpoints:
     web:
       exposure:
@@ -51,18 +40,12 @@ management:
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
-  mail:
-    from: ${MAIL_FROM:kasse@localhost}
   storage:
     dir: ${STORAGE_DIR:./data/receipts}
   receipt:
     enabled: ${RECEIPT_AI_ENABLED:false}
     model: ${RECEIPT_MODEL:gpt-6-luna}
     fallback-model: ${RECEIPT_FALLBACK_MODEL:gpt-6.1-sol}
-  vapid:
-    public-key: ${VAPID_PUBLIC:}
-    private-key: ${VAPID_PRIVATE:}
-    subject: ${VAPID_SUBJECT:mailto:kasse@localhost}
 
 springdoc:
   api-docs:

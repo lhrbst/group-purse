@@ -28,7 +28,6 @@ import type {
   LoginRequest,
   MeDto,
   PasswordResetConfirm,
-  PasswordResetRequest,
   RegisterRequest
 } from '../../model';
 
@@ -239,99 +238,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAuthRegisterMutationOptions(options), queryClient);
-    }
-    export type authRequestResetResponse204 = {
-  data: void
-  status: 204
-}
-
-export type authRequestResetResponseSuccess = (authRequestResetResponse204) & {
-  headers: Headers;
-};
-;
-
-export type authRequestResetResponse = (authRequestResetResponseSuccess)
-
-export const getAuthRequestResetUrl = () => {
-
-
-
-
-  return `/api/auth/password-reset/request`
-}
-
-export const authRequestReset = async (passwordResetRequest: PasswordResetRequest, options?: Parameters<typeof customFetch>[1]): Promise<authRequestResetResponse> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<authRequestResetResponse>(getAuthRequestResetUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(passwordResetRequest)
-  }
-);}
-
-
-
-
-
-export const getAuthRequestResetMutationKey = () => ['authRequestReset'] as const;
-
-export const getAuthRequestResetMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authRequestReset>>, TError,AuthRequestResetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof authRequestReset>>, TError,AuthRequestResetMutationVariables, TContext> => {
-
-const mutationKey = getAuthRequestResetMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authRequestReset>>, AuthRequestResetMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  authRequestReset(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AuthRequestResetMutationResult = NonNullable<Awaited<ReturnType<typeof authRequestReset>>>
-    export type AuthRequestResetMutationBody = PasswordResetRequest
-    export type AuthRequestResetMutationError = unknown
-    export type AuthRequestResetMutationVariables = {data: PasswordResetRequest}
-
-    export const useAuthRequestReset = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authRequestReset>>, TError,AuthRequestResetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof authRequestReset>>,
-        TError,
-        AuthRequestResetMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAuthRequestResetMutationOptions(options), queryClient);
     }
     export type authConfirmResetResponse204 = {
   data: void

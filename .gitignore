@@ -45,3 +45,5 @@ data/
 *.log
 .idea/
 src/main/resources/static/
+
+config/

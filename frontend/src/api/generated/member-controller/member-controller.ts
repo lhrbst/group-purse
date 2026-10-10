@@ -25,6 +25,7 @@ import type {
 
 import type {
   CodeResponse,
+  LinkResponse,
   MemberDto,
   SettingsRequest,
   WohngruppeDto
@@ -223,6 +224,85 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getMemberBlockMutationOptions(options), queryClient);
+    }
+    export type memberPasswordLinkResponse200 = {
+  data: LinkResponse
+  status: 200
+}
+
+export type memberPasswordLinkResponseSuccess = (memberPasswordLinkResponse200) & {
+  headers: Headers;
+};
+;
+
+export type memberPasswordLinkResponse = (memberPasswordLinkResponseSuccess)
+
+export const getMemberPasswordLinkUrl = (id: string,) => {
+
+
+
+
+  return `/api/members/${id}/passwort-link`
+}
+
+export const memberPasswordLink = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<memberPasswordLinkResponse> => {
+
+  return customFetch<memberPasswordLinkResponse>(getMemberPasswordLinkUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMemberPasswordLinkMutationKey = () => ['memberPasswordLink'] as const;
+
+export const getMemberPasswordLinkMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof memberPasswordLink>>, TError,MemberPasswordLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof memberPasswordLink>>, TError,MemberPasswordLinkMutationVariables, TContext> => {
+
+const mutationKey = getMemberPasswordLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof memberPasswordLink>>, MemberPasswordLinkMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  memberPasswordLink(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MemberPasswordLinkMutationResult = NonNullable<Awaited<ReturnType<typeof memberPasswordLink>>>
+
+    export type MemberPasswordLinkMutationError = unknown
+    export type MemberPasswordLinkMutationVariables = {id: string}
+
+    export const useMemberPasswordLink = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof memberPasswordLink>>, TError,MemberPasswordLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof memberPasswordLink>>,
+        TError,
+        MemberPasswordLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMemberPasswordLinkMutationOptions(options), queryClient);
     }
     export type memberActivateResponse200 = {
   data: MemberDto

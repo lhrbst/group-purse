@@ -6,7 +6,5 @@ export * from './expense-controller/expense-controller';
 export * from './export-controller/export-controller';
 export * from './ledger-controller/ledger-controller';
 export * from './member-controller/member-controller';
-export * from './push-controller/push-controller';
 export * from './receipt-controller/receipt-controller';
-export * from './reminder-controller/reminder-controller';
 export * from './report-controller/report-controller';

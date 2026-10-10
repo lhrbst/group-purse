@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { useCategoryCreate, useCategoryHide, useCategoryList } from '../../api/generated/category-controller/category-controller';
 import { useMemberGroup, useMemberSettings } from '../../api/generated/member-controller/member-controller';
 import { LoadError, Loading } from '../../components/Loading';
-import { PushToggle } from '../../components/PushToggle';
 import { notifyError, notifySuccess } from '../../lib/errors';
 import { parseAmount } from '../../lib/format';
 import { zodValidate } from '../../lib/zodForm';
@@ -102,10 +101,6 @@ export function SettingsPage() {
         <Title order={4} mb="xs">Kategorien</Title>
         <Text size="sm" c="dimmed" mb="sm">Ausgeblendete Kategorien stehen bei neuen Ausgaben nicht mehr zur Auswahl; alte Buchungen behalten sie.</Text>
         <Categories />
-      </Card>
-      <Card withBorder>
-        <Title order={4} mb="xs">Benachrichtigungen</Title>
-        <PushToggle />
       </Card>
     </Stack>
   );

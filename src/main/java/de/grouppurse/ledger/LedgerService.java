@@ -11,7 +11,6 @@ import de.grouppurse.repo.BuchungRepository;
 import de.grouppurse.repo.WohngruppeRepository;
 import de.grouppurse.security.CurrentUser;
 import de.grouppurse.tenant.TenantContext;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,11 +32,10 @@ public class LedgerService {
     private final BalanceService balances;
     private final AuditService audit;
     private final CurrentUser user;
-    private final ApplicationEventPublisher events;
 
     public LedgerService(BuchungRepository buchungen, BeitragRepository beitraege, WohngruppeRepository gruppen,
                          BookingNumberService numbers, BalanceService balances, AuditService audit,
-                         CurrentUser user, ApplicationEventPublisher events) {
+                         CurrentUser user) {
         this.buchungen = buchungen;
         this.beitraege = beitraege;
         this.gruppen = gruppen;
@@ -45,7 +43,6 @@ public class LedgerService {
         this.balances = balances;
         this.audit = audit;
         this.user = user;
-        this.events = events;
     }
 
     /** Betrag auf höchstens zwei Nachkommastellen prüfen. */
@@ -92,7 +89,6 @@ public class LedgerService {
         b.erfasstAm = Instant.now();
         b = buchungen.save(b);
         audit.log("Buchung angelegt", "Buchung", b.id, null, b);
-        afterBooking(b);
         return b;
     }
 
@@ -105,14 +101,7 @@ public class LedgerService {
         }
         Buchung saved = buchungen.save(b);
         audit.log("Buchung angelegt", "Buchung", saved.id, null, saved);
-        afterBooking(saved);
         return saved;
-    }
-
-    void afterBooking(Buchung b) {
-        if (b.konto == Konto.BARKASSE) {
-            events.publishEvent(new BarkasseChanged(b.wohngruppeId != null ? b.wohngruppeId : TenantContext.get().orElse(null)));
-        }
     }
 
     @Transactional
@@ -135,7 +124,6 @@ public class LedgerService {
         UUID gruppe = UUID.randomUUID();
         Buchung konto = book(Konto.VEREINSKONTO, Art.AUFFUELLUNG, v.negate(), datum, BuchungStatus.GEBUCHT, "Auffüllung Barkasse, übergeben an " + an, gruppe);
         Buchung kasse = book(Konto.BARKASSE, Art.AUFFUELLUNG, v, datum, BuchungStatus.GEBUCHT, "Auffüllung, übergeben an " + an, gruppe);
-        resetWarningIfRecovered();
         return List.of(konto, kasse);
     }
 
@@ -181,9 +169,6 @@ public class LedgerService {
         Wohngruppe g = gruppen.findById(TenantContext.get().orElseThrow()).orElseThrow();
         g.letzteBestandserfassung = Instant.now();
         audit.log("Bestand erfasst", "Konto", null, soll, ist);
-        if (konto == Konto.BARKASSE) {
-            resetWarningIfRecovered();
-        }
         return new BestandResult(soll, ist, diff, result);
     }
 
@@ -216,19 +201,9 @@ public class LedgerService {
             s = buchungen.save(s);
             audit.log("Buchung storniert", "Buchung", t.id, before, BuchungStatus.STORNIERT);
             audit.log("Storno angelegt", "Buchung", s.id, null, s);
-            afterBooking(s);
             result.add(s);
         }
-        resetWarningIfRecovered();
         return result;
     }
 
-    /** Warnflag zurücksetzen, sobald der Stand wieder über dem Mindestbetrag liegt. */
-    void resetWarningIfRecovered() {
-        gruppen.findById(TenantContext.get().orElseThrow()).ifPresent(g -> {
-            if (g.warnungAktiv && balances.balance(Konto.BARKASSE).compareTo(g.mindestbetragKasse) >= 0) {
-                g.warnungAktiv = false;
-            }
-        });
-    }
 }

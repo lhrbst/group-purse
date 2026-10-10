@@ -20,4 +20,7 @@ public final class MemberDtos {
 
     public record CodeResponse(String beitrittscode) {
     }
+
+    public record LinkResponse(String link) {
+    }
 }

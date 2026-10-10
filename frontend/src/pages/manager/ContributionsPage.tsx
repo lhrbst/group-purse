@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActionIcon, Badge, Button, Checkbox, Group, Modal, MultiSelect, Select, Stack, Switch, Table, Tabs, Text, TextInput, Title } from '@mantine/core';
+import { ActionIcon, Badge, Button, Checkbox, Group, MultiSelect, Select, Stack, Switch, Table, Tabs, Text, TextInput, Title } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,7 +14,6 @@ import {
   useContributionSetSollbetrag,
   useContributionUpdateFamily,
 } from '../../api/generated/contribution-controller/contribution-controller';
-import { useReminderSend } from '../../api/generated/reminder-controller/reminder-controller';
 import type { Cell, FamilyDto } from '../../api/model';
 import { ActionModal } from '../../components/ActionModal';
 import { Amount } from '../../components/Amount';
@@ -216,8 +215,6 @@ function SollbetragForm({ family, onClose }: { family: FamilyDto; onClose: () =>
 function GridTab({ onPay }: { onPay: () => void }) {
   const [end, setEnd] = useState(currentMonth());
   const grid = useContributionGrid({ von: shiftMonth(end, -11), bis: end });
-  const reminders = useReminderSend();
-  const [confirm, setConfirm] = useState(false);
 
   return (
     <Stack>
@@ -229,7 +226,6 @@ function GridTab({ onPay }: { onPay: () => void }) {
           <Button variant="subtle" size="compact-sm" onClick={() => setEnd(currentMonth())}>Heute</Button>
         </Group>
         <Group>
-          <Button variant="light" color="orange" onClick={() => setConfirm(true)}>Erinnerungen senden</Button>
           <Button onClick={onPay}>Zahlung buchen</Button>
         </Group>
       </Group>
@@ -268,29 +264,6 @@ function GridTab({ onPay }: { onPay: () => void }) {
           </Table>
         </Table.ScrollContainer>
       )}
-      <Modal opened={confirm} onClose={() => setConfirm(false)} title="Erinnerungen senden" centered>
-        <Stack>
-          <Text size="sm">Alle Familien mit überfälligem Beitrag und hinterlegter E-Mail-Adresse bekommen eine Erinnerungs-Mail.</Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setConfirm(false)}>Abbrechen</Button>
-            <Button
-              color="orange"
-              loading={reminders.isPending}
-              onClick={async () => {
-                try {
-                  const res = await reminders.mutateAsync();
-                  notifySuccess(res.status === 200 ? `${res.data.gesendet} Erinnerung(en) versendet.` : 'Erinnerungen versendet.');
-                  setConfirm(false);
-                } catch (e) {
-                  notifyError(e);
-                }
-              }}
-            >
-              Jetzt senden
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Stack>
   );
 }

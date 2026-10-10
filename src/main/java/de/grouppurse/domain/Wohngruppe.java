@@ -10,6 +10,5 @@ public class Wohngruppe extends BaseEntity {
     public String name;
     public String beitrittscode;
     public BigDecimal mindestbetragKasse = new BigDecimal("50.00");
-    public boolean warnungAktiv;
     public Instant letzteBestandserfassung;
 }

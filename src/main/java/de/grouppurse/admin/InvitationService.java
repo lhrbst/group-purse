@@ -11,7 +11,6 @@ import de.grouppurse.domain.Mitgliedschaft;
 import de.grouppurse.domain.Person;
 import de.grouppurse.domain.Rolle;
 import de.grouppurse.domain.Wohngruppe;
-import de.grouppurse.mail.MailService;
 import de.grouppurse.repo.EinladungRepository;
 import de.grouppurse.repo.MitgliedschaftRepository;
 import de.grouppurse.repo.PersonRepository;
@@ -35,19 +34,17 @@ public class InvitationService {
     private final PersonRepository people;
     private final MitgliedschaftRepository members;
     private final PasswordEncoder encoder;
-    private final MailService mail;
     private final CurrentUser user;
     private final String baseUrl;
 
     public InvitationService(EinladungRepository einladungen, WohngruppeRepository gruppen, PersonRepository people,
-                             MitgliedschaftRepository members, PasswordEncoder encoder, MailService mail,
+                             MitgliedschaftRepository members, PasswordEncoder encoder,
                              CurrentUser user, @Value("${app.base-url}") String baseUrl) {
         this.einladungen = einladungen;
         this.gruppen = gruppen;
         this.people = people;
         this.members = members;
         this.encoder = encoder;
-        this.mail = mail;
         this.user = user;
         this.baseUrl = baseUrl;
     }
@@ -71,15 +68,7 @@ public class InvitationService {
         e.gueltigBis = Instant.now().plus(Duration.ofDays(7));
         einladungen.save(e);
         String link = baseUrl + "/einladung/" + token;
-        boolean sent = true;
-        try {
-            mail.send(email, "Einladung zur Gruppenkasse " + g.name,
-                    "Du wurdest als Kassenverwalter der Wohngruppe \"" + g.name + "\" eingeladen.\n\n"
-                            + "Über diesen Link kannst du die Einladung annehmen (7 Tage gültig):\n" + link);
-        } catch (RuntimeException ex) {
-            sent = false;
-        }
-        return new InviteResponse(sent, link);
+        return new InviteResponse(link);
     }
 
     @Transactional(readOnly = true)

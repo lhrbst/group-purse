@@ -63,13 +63,11 @@ Alles über Umgebungsvariablen, siehe `src/main/resources/application.yml` und `
 | Variable | Zweck |
 | --- | --- |
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | PostgreSQL |
-| `APP_BASE_URL` | Basis für Links in E-Mails |
-| `SMTP_*`, `MAIL_FROM` | Mailversand (Einladungen, Passwort-Reset, Kassenwarnung, Erinnerungen) |
+| `APP_BASE_URL` | Basis für Einladungs- und Passwort-Links |
 | `RECEIPT_AI_ENABLED`, `OPENAI_API_KEY`, `RECEIPT_MODEL`, `RECEIPT_FALLBACK_MODEL` | Belegerkennung; aus = manuelle Eingabe |
-| `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Web-Push; leer = Push aus |
 | `STORAGE_DIR` | Ablage der Belegfotos |
 
 ## Bewusst nicht enthalten (Version 1)
 
-Bankabgleich, Erstattung privater Auslagen, Gruppenkarten, Verwaltung der Bewohner-Barbeträge, Kassensturz mit zwei Personen, Staging-Umgebung und **Backups**
+E-Mail- und Push-Benachrichtigungen (Hinweise erscheinen nur in der App), Bankabgleich, Erstattung privater Auslagen, Gruppenkarten, Verwaltung der Bewohner-Barbeträge, Kassensturz mit zwei Personen, Staging-Umgebung und **Backups**
 (siehe Hinweis in `docs/betrieb.md`).
