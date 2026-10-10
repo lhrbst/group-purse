@@ -17,6 +17,8 @@ function exitAfterBuildOnWindows(): Plugin {
   };
 }
 
+const backend = process.env.VITE_BACKEND_URL ?? 'http://localhost:8080';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -49,7 +51,10 @@ export default defineConfig({
     })]),
   ],
   server: {
-    proxy: { '/api': 'http://localhost:8080', '/actuator': 'http://localhost:8080' },
+    proxy: { '/api': backend, '/actuator': backend },
+  },
+  preview: {
+    proxy: { '/api': backend, '/actuator': backend },
   },
   test: {
     environment: 'jsdom',

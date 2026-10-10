@@ -254,7 +254,7 @@ public class ExpenseService {
             b.status = BuchungStatus.MANUELL;
             audit.log("Belegerkennung aufgegeben", "Buchung", b.id, null, text);
         } else {
-            b.verarbeitungNaechsterVersuch = Instant.now().plus(Duration.ofMinutes(2L * Math.max(1, b.verarbeitungVersuche)));
+            b.verarbeitungNaechsterVersuch = Instant.now().plus(Duration.ofSeconds((long) Math.max(1, ai.retryBackoffSeconds()) * Math.max(1, b.verarbeitungVersuche)));
         }
     }
 

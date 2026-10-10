@@ -11,6 +11,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  mvc:
+    # Fehlerantworten als ProblemDetail mit Text ("detail"), damit die Oberfläche die Meldung des Servers anzeigen kann
+    problemdetails:
+      enabled: true
   servlet:
     multipart:
       max-file-size: 20MB
@@ -18,6 +22,8 @@ spring:
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:disabled}
+    retry:
+      max-attempts: ${SPRING_AI_RETRY_MAX_ATTEMPTS:3}
 
 server:
   servlet:
@@ -48,6 +54,8 @@ app:
     fallback-model: ${RECEIPT_FALLBACK_MODEL:gpt-6.1-sol}
     # Belege werden im Hintergrund gelesen, deshalb darf ein einzelner KI-Aufruf lange dauern
     timeout-seconds: ${RECEIPT_TIMEOUT_SECONDS:180}
+    # Wartezeit vor dem nächsten Versuch: n-ter Versuch wartet n x diesen Wert
+    retry-backoff-seconds: ${RECEIPT_RETRY_BACKOFF_SECONDS:120}
 
 springdoc:
   api-docs:

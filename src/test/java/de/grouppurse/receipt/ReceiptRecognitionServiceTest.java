@@ -42,7 +42,7 @@ class ReceiptRecognitionServiceTest {
     }
 
     ReceiptRecognitionService service(boolean enabled) {
-        return new ReceiptRecognitionService(client, new ReceiptAiProperties(enabled, "klein", "gross", 30), categories);
+        return new ReceiptRecognitionService(client, new ReceiptAiProperties(enabled, "klein", "gross", 30, 1), categories);
     }
 
     RawReceipt good() {

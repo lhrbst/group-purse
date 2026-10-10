@@ -47,6 +47,15 @@ Den ersten Admin legst du wie in `docs/betrieb.md` beschrieben per SQL an.
 cd frontend && npm test            # Frontend (Vitest)
 ```
 
+### Ende-zu-Ende-Tests
+
+Playwright testet die ganze App im Browser gegen den echten Stack (PostgreSQL, Backend, gebautes Frontend, Fake-KI). Anleitung und Überblick in
+[`e2e/README.md`](e2e/README.md):
+
+```bash
+cd e2e && npm ci && npm run install:browsers && npm test
+```
+
 ### API-Client neu erzeugen
 
 Nach Änderungen an Controllern oder DTOs:
