@@ -1,0 +1,5 @@
+package de.grouppurse.domain;
+
+public enum Art {
+    ANFANGSBESTAND, AUFFUELLUNG, AUSGABE, RUECKGABE, KORREKTUR, KONTOAUSGABE, STORNO
+}
