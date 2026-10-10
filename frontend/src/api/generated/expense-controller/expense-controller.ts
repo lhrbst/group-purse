@@ -25,9 +25,11 @@ import type {
 
 import type {
   BuchungDto,
+  ExpenseCaptureBody,
+  ExpenseInput,
   ExpenseKontoausgabeBody,
   ExpenseMineParams,
-  ExpenseResubmitBody,
+  ExpenseReplacePhotosBody,
   ExpenseSearchParams,
   ExpenseSubmitBody,
   RejectRequest
@@ -55,143 +57,34 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
-export type expenseGetResponse200 = {
+export type expenseReplacePhotosResponse200 = {
   data: BuchungDto
   status: 200
 }
 
-export type expenseGetResponseSuccess = (expenseGetResponse200) & {
+export type expenseReplacePhotosResponseSuccess = (expenseReplacePhotosResponse200) & {
   headers: Headers;
 };
 ;
 
-export type expenseGetResponse = (expenseGetResponseSuccess)
+export type expenseReplacePhotosResponse = (expenseReplacePhotosResponseSuccess)
 
-export const getExpenseGetUrl = (id: string,) => {
-
-
+export const getExpenseReplacePhotosUrl = (id: string,) => {
 
 
-  return `/api/expenses/${id}`
+
+
+  return `/api/expenses/${id}/photos`
 }
 
-export const expenseGet = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<expenseGetResponse> => {
-
-  return customFetch<expenseGetResponse>(getExpenseGetUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getExpenseGetQueryKey = (id: string,) => {
-    return [
-    `/api/expenses/${id}`
-    ] as const;
-    }
-
-
-export const getExpenseGetQueryOptions = <TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getExpenseGetQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof expenseGet>>> = ({ signal }) => expenseGet(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ExpenseGetQueryResult = NonNullable<Awaited<ReturnType<typeof expenseGet>>>
-export type ExpenseGetQueryError = unknown
-
-
-export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
- id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof expenseGet>>,
-          TError,
-          Awaited<ReturnType<typeof expenseGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof expenseGet>>,
-          TError,
-          Awaited<ReturnType<typeof expenseGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getExpenseGetQueryOptions(id,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-export type expenseResubmitResponse200 = {
-  data: BuchungDto
-  status: 200
-}
-
-export type expenseResubmitResponseSuccess = (expenseResubmitResponse200) & {
-  headers: Headers;
-};
-;
-
-export type expenseResubmitResponse = (expenseResubmitResponseSuccess)
-
-export const getExpenseResubmitUrl = (id: string,) => {
-
-
-
-
-  return `/api/expenses/${id}`
-}
-
-export const expenseResubmit = async (id: string,
-    expenseResubmitBody?: ExpenseResubmitBody, options?: Parameters<typeof customFetch>[1]): Promise<expenseResubmitResponse> => {
+export const expenseReplacePhotos = async (id: string,
+    expenseReplacePhotosBody?: ExpenseReplacePhotosBody, options?: Parameters<typeof customFetch>[1]): Promise<expenseReplacePhotosResponse> => {
     const formData = new FormData();
-if(expenseResubmitBody?.data !== undefined) {
- formData.append(`data`, JSON.stringify(expenseResubmitBody.data));
- }
-if(expenseResubmitBody?.photos !== undefined) {
- expenseResubmitBody?.photos.forEach(value => formData.append(`photos`, value));
+if(expenseReplacePhotosBody?.photos !== undefined) {
+ expenseReplacePhotosBody?.photos.forEach(value => formData.append(`photos`, value));
  }
 
-  return customFetch<expenseResubmitResponse>(getExpenseResubmitUrl(id),
+  return customFetch<expenseReplacePhotosResponse>(getExpenseReplacePhotosUrl(id),
   {
     ...options,
     method: 'PUT'
@@ -204,13 +97,13 @@ if(expenseResubmitBody?.photos !== undefined) {
 
 
 
-export const getExpenseResubmitMutationKey = () => ['expenseResubmit'] as const;
+export const getExpenseReplacePhotosMutationKey = () => ['expenseReplacePhotos'] as const;
 
-export const getExpenseResubmitMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseResubmit>>, TError,ExpenseResubmitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof expenseResubmit>>, TError,ExpenseResubmitMutationVariables, TContext> => {
+export const getExpenseReplacePhotosMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseReplacePhotos>>, TError,ExpenseReplacePhotosMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof expenseReplacePhotos>>, TError,ExpenseReplacePhotosMutationVariables, TContext> => {
 
-const mutationKey = getExpenseResubmitMutationKey();
+const mutationKey = getExpenseReplacePhotosMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -220,10 +113,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof expenseResubmit>>, ExpenseResubmitMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof expenseReplacePhotos>>, ExpenseReplacePhotosMutationVariables> = (props) => {
           const {id,data} = props ?? {};
 
-          return  expenseResubmit(id,data,requestOptions)
+          return  expenseReplacePhotos(id,data,requestOptions)
         }
 
 
@@ -233,20 +126,114 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type ExpenseResubmitMutationResult = NonNullable<Awaited<ReturnType<typeof expenseResubmit>>>
-    export type ExpenseResubmitMutationBody = ExpenseResubmitBody | undefined
-    export type ExpenseResubmitMutationError = unknown
-    export type ExpenseResubmitMutationVariables = {id: string;data?: ExpenseResubmitBody}
+    export type ExpenseReplacePhotosMutationResult = NonNullable<Awaited<ReturnType<typeof expenseReplacePhotos>>>
+    export type ExpenseReplacePhotosMutationBody = ExpenseReplacePhotosBody | undefined
+    export type ExpenseReplacePhotosMutationError = unknown
+    export type ExpenseReplacePhotosMutationVariables = {id: string;data?: ExpenseReplacePhotosBody}
 
-    export const useExpenseResubmit = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseResubmit>>, TError,ExpenseResubmitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+    export const useExpenseReplacePhotos = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseReplacePhotos>>, TError,ExpenseReplacePhotosMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof expenseResubmit>>,
+        Awaited<ReturnType<typeof expenseReplacePhotos>>,
         TError,
-        ExpenseResubmitMutationVariables,
+        ExpenseReplacePhotosMutationVariables,
         TContext
       > => {
-      return useMutation(getExpenseResubmitMutationOptions(options), queryClient);
+      return useMutation(getExpenseReplacePhotosMutationOptions(options), queryClient);
+    }
+    export type expenseUpdateDetailsResponse200 = {
+  data: BuchungDto
+  status: 200
+}
+
+export type expenseUpdateDetailsResponseSuccess = (expenseUpdateDetailsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type expenseUpdateDetailsResponse = (expenseUpdateDetailsResponseSuccess)
+
+export const getExpenseUpdateDetailsUrl = (id: string,) => {
+
+
+
+
+  return `/api/expenses/${id}/details`
+}
+
+export const expenseUpdateDetails = async (id: string,
+    expenseInput: ExpenseInput, options?: Parameters<typeof customFetch>[1]): Promise<expenseUpdateDetailsResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<expenseUpdateDetailsResponse>(getExpenseUpdateDetailsUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expenseInput)
+  }
+);}
+
+
+
+
+
+export const getExpenseUpdateDetailsMutationKey = () => ['expenseUpdateDetails'] as const;
+
+export const getExpenseUpdateDetailsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseUpdateDetails>>, TError,ExpenseUpdateDetailsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof expenseUpdateDetails>>, TError,ExpenseUpdateDetailsMutationVariables, TContext> => {
+
+const mutationKey = getExpenseUpdateDetailsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof expenseUpdateDetails>>, ExpenseUpdateDetailsMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  expenseUpdateDetails(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExpenseUpdateDetailsMutationResult = NonNullable<Awaited<ReturnType<typeof expenseUpdateDetails>>>
+    export type ExpenseUpdateDetailsMutationBody = ExpenseInput
+    export type ExpenseUpdateDetailsMutationError = unknown
+    export type ExpenseUpdateDetailsMutationVariables = {id: string;data: ExpenseInput}
+
+    export const useExpenseUpdateDetails = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseUpdateDetails>>, TError,ExpenseUpdateDetailsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof expenseUpdateDetails>>,
+        TError,
+        ExpenseUpdateDetailsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExpenseUpdateDetailsMutationOptions(options), queryClient);
     }
     export type expenseKontoausgabeResponse201 = {
   data: BuchungDto
@@ -706,6 +693,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getExpenseApproveMutationOptions(options), queryClient);
     }
+    export type expenseCaptureResponse201 = {
+  data: BuchungDto
+  status: 201
+}
+
+export type expenseCaptureResponseSuccess = (expenseCaptureResponse201) & {
+  headers: Headers;
+};
+;
+
+export type expenseCaptureResponse = (expenseCaptureResponseSuccess)
+
+export const getExpenseCaptureUrl = () => {
+
+
+
+
+  return `/api/expenses/capture`
+}
+
+export const expenseCapture = async (expenseCaptureBody?: ExpenseCaptureBody, options?: Parameters<typeof customFetch>[1]): Promise<expenseCaptureResponse> => {
+    const formData = new FormData();
+if(expenseCaptureBody?.photos !== undefined) {
+ expenseCaptureBody?.photos.forEach(value => formData.append(`photos`, value));
+ }
+
+  return customFetch<expenseCaptureResponse>(getExpenseCaptureUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getExpenseCaptureMutationKey = () => ['expenseCapture'] as const;
+
+export const getExpenseCaptureMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseCapture>>, TError,ExpenseCaptureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof expenseCapture>>, TError,ExpenseCaptureMutationVariables, TContext> => {
+
+const mutationKey = getExpenseCaptureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof expenseCapture>>, ExpenseCaptureMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  expenseCapture(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExpenseCaptureMutationResult = NonNullable<Awaited<ReturnType<typeof expenseCapture>>>
+    export type ExpenseCaptureMutationBody = ExpenseCaptureBody | undefined
+    export type ExpenseCaptureMutationError = unknown
+    export type ExpenseCaptureMutationVariables = {data?: ExpenseCaptureBody}
+
+    export const useExpenseCapture = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof expenseCapture>>, TError,ExpenseCaptureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof expenseCapture>>,
+        TError,
+        ExpenseCaptureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExpenseCaptureMutationOptions(options), queryClient);
+    }
     export type expenseReceiptResponse200 = {
   data: Blob
   status: 200
@@ -809,6 +879,112 @@ export function useExpenseReceipt<TData = Awaited<ReturnType<typeof expenseRecei
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExpenseReceiptQueryOptions(buchungId,index,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type expenseGetResponse200 = {
+  data: BuchungDto
+  status: 200
+}
+
+export type expenseGetResponseSuccess = (expenseGetResponse200) & {
+  headers: Headers;
+};
+;
+
+export type expenseGetResponse = (expenseGetResponseSuccess)
+
+export const getExpenseGetUrl = (id: string,) => {
+
+
+
+
+  return `/api/expenses/${id}`
+}
+
+export const expenseGet = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<expenseGetResponse> => {
+
+  return customFetch<expenseGetResponse>(getExpenseGetUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExpenseGetQueryKey = (id: string,) => {
+    return [
+    `/api/expenses/${id}`
+    ] as const;
+    }
+
+
+export const getExpenseGetQueryOptions = <TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExpenseGetQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof expenseGet>>> = ({ signal }) => expenseGet(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExpenseGetQueryResult = NonNullable<Awaited<ReturnType<typeof expenseGet>>>
+export type ExpenseGetQueryError = unknown
+
+
+export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof expenseGet>>,
+          TError,
+          Awaited<ReturnType<typeof expenseGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof expenseGet>>,
+          TError,
+          Awaited<ReturnType<typeof expenseGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExpenseGet<TData = Awaited<ReturnType<typeof expenseGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExpenseGetQueryOptions(id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

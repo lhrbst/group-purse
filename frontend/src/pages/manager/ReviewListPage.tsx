@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { Badge, Button, Card, Group, Select, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Badge, Button, Card, Group, Loader, Select, Stack, Tabs, Text, Title } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useQueryClient } from '@tanstack/react-query';
-import { useExpenseApprove, useExpensePending, useExpenseReject, useExpenseSearch } from '../../api/generated/expense-controller/expense-controller';
+import {
+  useExpenseApprove,
+  useExpensePending,
+  useExpenseReject,
+  useExpenseSearch,
+  useExpenseUpdateDetails,
+} from '../../api/generated/expense-controller/expense-controller';
 import { useLedgerStorno } from '../../api/generated/ledger-controller/ledger-controller';
 import type { BuchungDto } from '../../api/model';
+import { ActionModal } from '../../components/ActionModal';
 import { Amount } from '../../components/Amount';
+import { ExpenseForm, newPosition } from '../../components/ExpenseForm';
 import { LoadError, Loading } from '../../components/Loading';
 import { ReasonModal } from '../../components/ReasonModal';
 import { ReceiptThumbs } from '../../components/ReceiptThumbs';
@@ -18,12 +26,17 @@ import { ART_LABEL, STATUS_LABEL } from '../../lib/labels';
 
 type Dialog = { kind: 'reject' | 'storno'; item: BuchungDto } | null;
 
-function ExpenseCard({ b, categories, onApprove, onDialog }: {
+interface CardProps {
   b: BuchungDto;
   categories: Map<string, string>;
   onApprove?: (b: BuchungDto) => void;
+  onEdit?: (b: BuchungDto) => void;
   onDialog: (kind: 'reject' | 'storno', b: BuchungDto) => void;
-}) {
+}
+
+function ExpenseCard({ b, categories, onApprove, onEdit, onDialog }: CardProps) {
+  const open = b.status === 'VERARBEITUNG' || b.status === 'MANUELL';
+  const editable = open || b.status === 'EINGEREICHT';
   const canStorno = b.status !== 'STORNIERT' && b.art !== 'STORNO';
   return (
     <Card withBorder padding="sm">
@@ -31,16 +44,27 @@ function ExpenseCard({ b, categories, onApprove, onDialog }: {
         <div>
           <Text fw={600}>{b.haendler || b.zweck || ART_LABEL[b.art ?? ''] || 'Ausgabe'}</Text>
           <Text size="sm" c="dimmed">
-            {formatDate(b.datum)} · Nr. {b.nummer} · {b.erfasstVonName}
+            {formatDate(open ? b.erfasstAm : b.datum)} · Nr. {b.nummer} · {b.erfasstVonName}
           </Text>
           {b.zweck && b.haendler && <Text size="sm">{b.zweck}</Text>}
-          <Text size="sm">{describePositions(b.positionen, (id) => categories.get(id ?? '') ?? 'Kategorie')}</Text>
+          {!open && <Text size="sm">{describePositions(b.positionen, (id) => categories.get(id ?? '') ?? 'Kategorie')}</Text>}
         </div>
         <Stack gap={4} align="flex-end">
-          <Amount value={b.betrag} fw={700} />
+          {open ? <Text size="sm" c="dimmed">Betrag offen</Text> : <Amount value={b.betrag} fw={700} />}
           <StatusBadge status={b.status} />
         </Stack>
       </Group>
+      {b.status === 'VERARBEITUNG' && (
+        <Group gap="xs" mt={6}>
+          <Loader size="xs" />
+          <Text size="sm" c="dimmed">Die KI liest den Beleg. Das Ergebnis erscheint hier automatisch.</Text>
+        </Group>
+      )}
+      {b.status === 'MANUELL' && (
+        <Text size="sm" c="orange" mt={6}>
+          Bitte die Daten selbst eintragen.{b.verarbeitungFehler ? ` (${b.verarbeitungFehler})` : ''}
+        </Text>
+      )}
       {b.ohneBeleg && (
         <Badge color="orange" variant="light" mt="xs">
           Ohne Beleg: {b.begruendungOhneBeleg}
@@ -53,15 +77,20 @@ function ExpenseCard({ b, categories, onApprove, onDialog }: {
       )}
       {b.id && <ReceiptThumbs buchungId={b.id} count={b.belegAnzahl ?? 0} />}
       <Group mt="xs" gap="xs">
+        {onEdit && editable && (
+          <Button size="compact-md" variant={b.status === 'EINGEREICHT' ? 'light' : 'filled'} onClick={() => onEdit(b)}>
+            {open ? 'Daten erfassen' : 'Bearbeiten'}
+          </Button>
+        )}
         {onApprove && b.status === 'EINGEREICHT' && (
-          <>
-            <Button size="compact-md" color="green" onClick={() => onApprove(b)}>
-              Prüfen und bestätigen
-            </Button>
-            <Button size="compact-md" color="red" variant="light" onClick={() => onDialog('reject', b)}>
-              Ablehnen
-            </Button>
-          </>
+          <Button size="compact-md" color="green" onClick={() => onApprove(b)}>
+            Prüfen und bestätigen
+          </Button>
+        )}
+        {onEdit && editable && (
+          <Button size="compact-md" color="red" variant="light" onClick={() => onDialog('reject', b)}>
+            Foto unbrauchbar
+          </Button>
         )}
         {canStorno && (
           <Button size="compact-md" variant="subtle" color="gray" onClick={() => onDialog('storno', b)}>
@@ -76,11 +105,15 @@ function ExpenseCard({ b, categories, onApprove, onDialog }: {
 export function ReviewListPage() {
   const qc = useQueryClient();
   const categories = useCategoryNames();
-  const pending = useExpensePending();
+  const pending = useExpensePending({
+    query: { refetchInterval: (q) => (q.state.data?.status === 200 && q.state.data.data.some((b) => b.status === 'VERARBEITUNG') ? 8000 : false) },
+  });
   const approve = useExpenseApprove();
   const reject = useExpenseReject();
   const storno = useLedgerStorno();
+  const update = useExpenseUpdateDetails();
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [editing, setEditing] = useState<BuchungDto | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [von, setVon] = useState<string | null>(null);
   const [bis, setBis] = useState<string | null>(null);
@@ -105,7 +138,7 @@ export function ReviewListPage() {
     try {
       if (dialog.kind === 'reject') {
         await reject.mutateAsync({ id: dialog.item.id!, data: { kommentar: reason } });
-        notifySuccess('Ausgabe abgelehnt und zur Korrektur zurückgegeben.');
+        notifySuccess('Beleg abgelehnt. Das Teammitglied kann neue Fotos hochladen.');
       } else {
         await storno.mutateAsync({ id: dialog.item.id!, data: { begruendung: reason } });
         notifySuccess('Ausgabe storniert.');
@@ -117,12 +150,16 @@ export function ReviewListPage() {
     }
   }
 
+  const open = (pending.data?.status === 200 ? pending.data.data : []).filter((b) => b.status !== 'EINGEREICHT');
+  const toReview = (pending.data?.status === 200 ? pending.data.data : []).filter((b) => b.status === 'EINGEREICHT');
+  const dialogProps = { categories, onDialog: (kind: 'reject' | 'storno', item: BuchungDto) => setDialog({ kind, item }) };
+
   return (
     <Stack maw={820}>
       <Title order={2}>Prüfung</Title>
       <Tabs defaultValue="pending" keepMounted={false}>
         <Tabs.List>
-          <Tabs.Tab value="pending">Zu prüfen{pending.data?.status === 200 ? ` (${pending.data.data.length})` : ''}</Tabs.Tab>
+          <Tabs.Tab value="pending">Offen{pending.data?.status === 200 ? ` (${pending.data.data.length})` : ''}</Tabs.Tab>
           <Tabs.Tab value="all">Alle Ausgaben</Tabs.Tab>
         </Tabs.List>
 
@@ -132,12 +169,25 @@ export function ReviewListPage() {
           ) : pending.isError || pending.data?.status !== 200 ? (
             <LoadError error={pending.error} />
           ) : pending.data.data.length === 0 ? (
-            <Text c="dimmed">Alles geprüft. Es gibt keine eingereichten Ausgaben.</Text>
+            <Text c="dimmed">Alles erledigt. Es gibt keine offenen Belege.</Text>
           ) : (
-            <Stack gap="xs">
-              {pending.data.data.map((b) => (
-                <ExpenseCard key={b.id} b={b} categories={categories} onApprove={onApprove} onDialog={(kind, item) => setDialog({ kind, item })} />
-              ))}
+            <Stack gap="md">
+              {open.length > 0 && (
+                <Stack gap="xs">
+                  <Title order={5}>Wird gelesen oder braucht deine Eingabe ({open.length})</Title>
+                  {open.map((b) => (
+                    <ExpenseCard key={b.id} b={b} onEdit={setEditing} {...dialogProps} />
+                  ))}
+                </Stack>
+              )}
+              {toReview.length > 0 && (
+                <Stack gap="xs">
+                  <Title order={5}>Zu prüfen ({toReview.length})</Title>
+                  {toReview.map((b) => (
+                    <ExpenseCard key={b.id} b={b} onApprove={onApprove} onEdit={setEditing} {...dialogProps} />
+                  ))}
+                </Stack>
+              )}
             </Stack>
           )}
         </Tabs.Panel>
@@ -151,7 +201,7 @@ export function ReviewListPage() {
               data={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
               value={status}
               onChange={setStatus}
-              w={160}
+              w={180}
             />
             <DateInput label="Von" valueFormat="DD.MM.YYYY" clearable value={von} onChange={setVon} w={150} />
             <DateInput label="Bis" valueFormat="DD.MM.YYYY" clearable value={bis} onChange={setBis} w={150} />
@@ -165,7 +215,7 @@ export function ReviewListPage() {
           ) : (
             <Stack gap="xs">
               {all.data.data.map((b) => (
-                <ExpenseCard key={b.id} b={b} categories={categories} onDialog={(kind, item) => setDialog({ kind, item })} />
+                <ExpenseCard key={b.id} b={b} {...dialogProps} />
               ))}
             </Stack>
           )}
@@ -175,12 +225,38 @@ export function ReviewListPage() {
       <ReasonModal
         opened={dialog !== null}
         onClose={() => setDialog(null)}
-        title={dialog?.kind === 'reject' ? 'Ausgabe ablehnen' : 'Ausgabe stornieren'}
-        label={dialog?.kind === 'reject' ? 'Kommentar an die erfassende Person' : 'Begründung (wird im Kassenbuch festgehalten)'}
-        confirmLabel={dialog?.kind === 'reject' ? 'Ablehnen' : 'Stornieren'}
+        title={dialog?.kind === 'reject' ? 'Foto unbrauchbar' : 'Ausgabe stornieren'}
+        label={dialog?.kind === 'reject' ? 'Hinweis an das Teammitglied (z. B. „Bitte neu fotografieren, das Foto ist unscharf“)' : 'Begründung (wird im Kassenbuch festgehalten)'}
+        confirmLabel={dialog?.kind === 'reject' ? 'Zurückgeben' : 'Stornieren'}
         color="red"
         onConfirm={confirm}
       />
+
+      <ActionModal opened={editing !== null} onClose={() => setEditing(null)} title={editing?.status === 'EINGEREICHT' ? 'Beleg bearbeiten' : 'Beleg erfassen'}>
+        {editing && (
+          <ExpenseForm
+            allowPhotos={false}
+            existingId={editing.id}
+            existingPhotos={editing.belegAnzahl ?? 0}
+            initial={{
+              datum: editing.datum,
+              positionen: (editing.positionen ?? []).map((p) => newPosition(p.kategorieId ?? '', (p.betrag ?? 0).toFixed(2).replace('.', ','))),
+              haendler: editing.haendler ?? '',
+              zweck: editing.zweck ?? '',
+              begruendungOhneBeleg: editing.begruendungOhneBeleg ?? '',
+            }}
+            submitLabel="Speichern"
+            submitting={update.isPending}
+            hint={editing.status === 'EINGEREICHT' ? 'Die Aufteilung stammt von der KI. Bitte prüfen und bei Bedarf ändern.' : 'Bitte Betrag, Datum und Kategorien vom Beleg abtippen.'}
+            onSubmit={async (input) => {
+              await update.mutateAsync({ id: editing.id!, data: input });
+              await qc.invalidateQueries();
+              notifySuccess('Beleg gespeichert. Er kann jetzt geprüft werden.');
+              setEditing(null);
+            }}
+          />
+        )}
+      </ActionModal>
     </Stack>
   );
 }

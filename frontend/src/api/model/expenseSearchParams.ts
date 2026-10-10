@@ -12,5 +12,4 @@ kategorie?: string;
 von?: string;
 bis?: string;
 person?: string;
-bewohner?: string;
 };

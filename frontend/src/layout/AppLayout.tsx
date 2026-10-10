@@ -4,6 +4,7 @@ import { NavLink as RouterLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useAuthLogout } from '../api/generated/auth-controller/auth-controller';
 import { useReportManager } from '../api/generated/report-controller/report-controller';
+import { PendingUploads } from '../components/PendingUploads';
 import { GroupSwitcher } from './GroupSwitcher';
 
 interface NavItem {
@@ -34,7 +35,7 @@ export function AppLayout() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const logout = useAuthLogout();
   const dashboard = useReportManager({ query: { enabled: isManager } });
-  const pending = dashboard.data?.status === 200 ? (dashboard.data.data.eingereichtAnzahl ?? 0) : 0;
+  const pending = dashboard.data?.status === 200 ? (dashboard.data.data.eingereichtAnzahl ?? 0) + (dashboard.data.data.ohneBetrag ?? 0) : 0;
 
   const items = [...(isManager ? MANAGER_NAV : isCaregiver ? CAREGIVER_NAV : [{ to: '/', label: 'Start' }])];
   if (isAdmin) items.push({ to: '/admin', label: 'Wohngruppen (Admin)' });
@@ -89,6 +90,7 @@ export function AppLayout() {
         ))}
       </AppShell.Navbar>
       <AppShell.Main>
+        <PendingUploads />
         <Outlet />
       </AppShell.Main>
     </AppShell>

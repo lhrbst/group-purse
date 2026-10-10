@@ -5,6 +5,6 @@
  * OpenAPI spec version: v0
  */
 
-export type ReceiptRecognizeBody = {
-  photo: Blob | File;
+export type ExpenseReplacePhotosBody = {
+  photos: (Blob | File)[];
 };

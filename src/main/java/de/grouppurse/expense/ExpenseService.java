@@ -13,6 +13,8 @@ import de.grouppurse.expense.ExpenseDtos.PositionInput;
 import de.grouppurse.ledger.BuchungDto;
 import de.grouppurse.ledger.BuchungMapper;
 import de.grouppurse.ledger.LedgerService;
+import de.grouppurse.receipt.ReceiptAiProperties;
+import de.grouppurse.receipt.ReceiptSuggestion;
 import de.grouppurse.repo.BuchungPositionRepository;
 import de.grouppurse.repo.BuchungRepository;
 import de.grouppurse.security.CurrentUser;
@@ -26,10 +28,12 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +45,10 @@ import java.util.stream.Collectors;
 public class ExpenseService {
     static final int MAX_PHOTOS = 10;
     static final int MAX_POSITIONS = 30;
+    /** Nach so vielen erfolglosen KI-Versuchen wird der Beleg zur manuellen Erfassung freigegeben. */
+    public static final int MAX_ATTEMPTS = 3;
+    /** Solange der Beleg noch nicht geprüft ist, darf der Kassenverwalter ihn bearbeiten. */
+    private static final Set<BuchungStatus> EDITABLE = EnumSet.of(BuchungStatus.VERARBEITUNG, BuchungStatus.MANUELL, BuchungStatus.EINGEREICHT);
 
     private final BuchungRepository buchungen;
     private final BuchungPositionRepository positionen;
@@ -50,9 +58,11 @@ public class ExpenseService {
     private final AuditService audit;
     private final CurrentUser user;
     private final BuchungMapper mapper;
+    private final ReceiptAiProperties ai;
 
     public ExpenseService(BuchungRepository buchungen, BuchungPositionRepository positionen, LedgerService ledger,
-                          CategoryService categories, ReceiptStorage storage, AuditService audit, CurrentUser user, BuchungMapper mapper) {
+                          CategoryService categories, ReceiptStorage storage, AuditService audit, CurrentUser user,
+                          BuchungMapper mapper, ReceiptAiProperties ai) {
         this.buchungen = buchungen;
         this.positionen = positionen;
         this.ledger = ledger;
@@ -61,9 +71,43 @@ public class ExpenseService {
         this.audit = audit;
         this.user = user;
         this.mapper = mapper;
+        this.ai = ai;
     }
 
-    /** Neue Ausgabe aus der Barkasse. Zieht den Betrag sofort vom Kassenstand ab. */
+    private BuchungStatus statusAfterUpload() {
+        return ai.enabled() ? BuchungStatus.VERARBEITUNG : BuchungStatus.MANUELL;
+    }
+
+    private static List<MultipartFile> nonEmpty(List<MultipartFile> photos) {
+        return photos == null ? List.of() : photos.stream().filter(f -> !f.isEmpty()).toList();
+    }
+
+    // ---------- Erfassen
+
+    /**
+     * Teammitglied macht nur Fotos. Der Beleg wird mit Betrag 0 gespeichert (der Kassenstand ändert sich erst, wenn die Daten
+     * vorliegen) und im Hintergrund von der KI gelesen; ist die KI aus, geht er direkt zur manuellen Erfassung.
+     */
+    @Transactional
+    public Buchung capture(List<MultipartFile> photos) {
+        List<MultipartFile> files = nonEmpty(photos);
+        if (files.isEmpty()) {
+            throw new IllegalArgumentException("Bitte mindestens ein Foto mitschicken");
+        }
+        if (files.size() > MAX_PHOTOS) {
+            throw new IllegalArgumentException("Höchstens " + MAX_PHOTOS + " Fotos je Beleg");
+        }
+        Buchung b = new Buchung();
+        b.konto = Konto.BARKASSE;
+        b.art = Art.AUSGABE;
+        b.betrag = new BigDecimal("0.00");
+        b.datum = LocalDate.now();
+        b.status = statusAfterUpload();
+        b.belegFotos = new ArrayList<>(files.stream().map(storage::store).toList());
+        return ledger.save(b);
+    }
+
+    /** Vollständige Erfassung von Hand (z. B. verlorener Beleg ohne Foto, mit Begründung). Zieht den Betrag sofort ab. */
     @Transactional
     public Buchung submit(ExpenseInput in, List<MultipartFile> photos) {
         Buchung b = new Buchung();
@@ -89,22 +133,60 @@ public class ExpenseService {
         return saved;
     }
 
-    /** Das Teammitglied korrigiert eine abgelehnte Ausgabe und reicht sie erneut ein. */
+    /** Nach Ablehnung (Foto unbrauchbar): die erfassende Person lädt neue Fotos hoch, der Beleg wird neu gelesen. */
     @Transactional
-    public Buchung resubmit(UUID id, ExpenseInput in, List<MultipartFile> photos) {
+    public Buchung replacePhotos(UUID id, List<MultipartFile> photos) {
         Buchung b = find(id);
         if (b.art != Art.AUSGABE || !b.erfasstVon.equals(user.personId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nur die erfassende Person kann ihre Ausgabe korrigieren");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nur die erfassende Person kann neue Fotos hochladen");
         }
         if (b.status != BuchungStatus.ABGELEHNT) {
-            throw new IllegalStateException("Nur abgelehnte Ausgaben können korrigiert werden");
+            throw new IllegalStateException("Nur abgelehnte Belege können neu fotografiert werden");
+        }
+        List<MultipartFile> files = nonEmpty(photos);
+        if (files.isEmpty()) {
+            throw new IllegalArgumentException("Bitte mindestens ein Foto mitschicken");
+        }
+        if (files.size() > MAX_PHOTOS) {
+            throw new IllegalArgumentException("Höchstens " + MAX_PHOTOS + " Fotos je Beleg");
         }
         BuchungDto before = mapper.toDto(b);
-        List<PositionInput> rows = apply(b, in, photos, false);
+        b.belegFotos = new ArrayList<>(files.stream().map(storage::store).toList());
+        b.begruendungOhneBeleg = null;
+        b.ablehnungsKommentar = null;
+        b.betrag = new BigDecimal("0.00");
+        b.kategorieId = null;
+        b.haendler = null;
+        b.zweck = null;
+        positionen.deleteByBuchungId(b.id);
+        resetProcessing(b);
+        b.status = statusAfterUpload();
+        audit.log("Beleg neu fotografiert", "Buchung", b.id, before, mapper.toDto(b));
+        return b;
+    }
+
+    private static void resetProcessing(Buchung b) {
+        b.verarbeitungVersuche = 0;
+        b.verarbeitungFehler = null;
+        b.verarbeitungGestartetAm = null;
+        b.verarbeitungNaechsterVersuch = null;
+    }
+
+    // ---------- Kassenverwalter: Daten erfassen/korrigieren, prüfen
+
+    /** Kassenverwalter trägt die Daten selbst ein oder korrigiert den Vorschlag der KI. Danach wartet der Beleg auf die Prüfung. */
+    @Transactional
+    public Buchung updateDetails(UUID id, ExpenseInput in) {
+        Buchung b = find(id);
+        if (b.art != Art.AUSGABE || !EDITABLE.contains(b.status)) {
+            throw new IllegalStateException("Diese Ausgabe kann nicht mehr bearbeitet werden");
+        }
+        BuchungDto before = mapper.toDto(b);
+        List<PositionInput> rows = apply(b, in, null, false);
         replacePositions(b.id, rows);
         b.status = BuchungStatus.EINGEREICHT;
-        b.ablehnungsKommentar = null;
-        audit.log("Ausgabe erneut eingereicht", "Buchung", b.id, before, mapper.toDto(b));
+        b.verarbeitungFehler = null;
+        audit.log("Beleg bearbeitet", "Buchung", b.id, before, mapper.toDto(b));
         return b;
     }
 
@@ -119,19 +201,64 @@ public class ExpenseService {
         return b;
     }
 
-    /** Lehnt ab: Der Betrag bleibt im Kassenstand abgezogen, bis die Ausgabe korrigiert oder storniert wird. */
+    /** Lehnt ab, z. B. weil das Foto unbrauchbar ist. Das Teammitglied lädt dann neue Fotos hoch. */
     @Transactional
     public Buchung reject(UUID id, String kommentar) {
         if (kommentar == null || kommentar.isBlank()) {
             throw new IllegalArgumentException("Kommentar ist Pflicht");
         }
         Buchung b = find(id);
-        requireSubmitted(b);
+        if (b.art != Art.AUSGABE || !EDITABLE.contains(b.status)) {
+            throw new IllegalStateException("Nur offene Belege können abgelehnt werden");
+        }
         b.status = BuchungStatus.ABGELEHNT;
         b.ablehnungsKommentar = kommentar.trim();
-        audit.log("Ausgabe abgelehnt", "Buchung", b.id, BuchungStatus.EINGEREICHT, kommentar.trim());
+        audit.log("Ausgabe abgelehnt", "Buchung", b.id, null, kommentar.trim());
         return b;
     }
+
+    // ---------- Hintergrundverarbeitung (vom ReceiptProcessor aufgerufen, je Schritt eigene Transaktion)
+
+    @Transactional(readOnly = true)
+    public List<String> photoNamesIfPending(UUID id) {
+        return buchungen.findById(id).filter(b -> b.status == BuchungStatus.VERARBEITUNG).map(b -> List.copyOf(b.belegFotos)).orElse(List.of());
+    }
+
+    /** Schreibt das Ergebnis der KI an den Beleg. Wurde der Beleg inzwischen anders bearbeitet, passiert nichts. */
+    @Transactional
+    public void applyRecognition(UUID id, ReceiptSuggestion s) {
+        Buchung b = find(id);
+        if (b.status != BuchungStatus.VERARBEITUNG) {
+            return;
+        }
+        List<PositionInput> wanted = s.positionen().stream().map(p -> new PositionInput(p.kategorieId(), p.betrag())).toList();
+        ExpenseInput in = new ExpenseInput(s.datum(), wanted, s.haendler(), null, null, null);
+        List<PositionInput> rows = apply(b, in, null, false);
+        replacePositions(b.id, rows);
+        b.status = BuchungStatus.EINGEREICHT;
+        b.verarbeitungFehler = null;
+        audit.log("Beleg von der KI gelesen", "Buchung", b.id, null, mapper.toDto(b));
+    }
+
+    /** Vermerkt einen erfolglosen Versuch; nach MAX_ATTEMPTS wird der Beleg zur manuellen Erfassung freigegeben. */
+    @Transactional
+    public void recordRecognitionFailure(UUID id, String message) {
+        Buchung b = find(id);
+        if (b.status != BuchungStatus.VERARBEITUNG) {
+            return;
+        }
+        String text = message == null ? "unbekannter Fehler" : (message.length() > 500 ? message.substring(0, 500) : message);
+        b.verarbeitungFehler = text;
+        b.verarbeitungGestartetAm = null;
+        if (b.verarbeitungVersuche >= MAX_ATTEMPTS) {
+            b.status = BuchungStatus.MANUELL;
+            audit.log("Belegerkennung aufgegeben", "Buchung", b.id, null, text);
+        } else {
+            b.verarbeitungNaechsterVersuch = Instant.now().plus(Duration.ofMinutes(2L * Math.max(1, b.verarbeitungVersuche)));
+        }
+    }
+
+    // ---------- Lesen
 
     @Transactional(readOnly = true)
     public List<BuchungDto> mine(int days) {
@@ -139,13 +266,15 @@ public class ExpenseService {
         return mapper.toDtos(buchungen.findByErfasstVonAndArtAndErfasstAmAfterOrderByNummerDesc(user.personId(), Art.AUSGABE, since));
     }
 
+    /** Offene Belege für den Kassenverwalter: in Verarbeitung, manuell zu erfassen oder zur Prüfung. */
     @Transactional(readOnly = true)
     public List<BuchungDto> pending() {
-        return mapper.toDtos(buchungen.findByStatusOrderByNummerAsc(BuchungStatus.EINGEREICHT));
+        return mapper.toDtos(buchungen.findByStatusInOrderByNummerAsc(
+                List.of(BuchungStatus.VERARBEITUNG, BuchungStatus.MANUELL, BuchungStatus.EINGEREICHT)));
     }
 
     @Transactional(readOnly = true)
-    public List<BuchungDto> search(BuchungStatus status, UUID kategorie, LocalDate von, LocalDate bis, UUID person, String bewohner) {
+    public List<BuchungDto> search(BuchungStatus status, UUID kategorie, LocalDate von, LocalDate bis, UUID person) {
         Specification<Buchung> spec = (r, q, cb) -> r.get("art").in(Art.AUSGABE, Art.KONTOAUSGABE);
         if (status != null) {
             spec = spec.and((r, q, cb) -> cb.equal(r.get("status"), status));
@@ -158,10 +287,6 @@ public class ExpenseService {
         }
         if (person != null) {
             spec = spec.and((r, q, cb) -> cb.equal(r.get("erfasstVon"), person));
-        }
-        if (bewohner != null && !bewohner.isBlank()) {
-            String b = bewohner.trim().toLowerCase();
-            spec = spec.and((r, q, cb) -> cb.equal(cb.lower(r.get("bewohnerKuerzel")), b));
         }
         List<BuchungDto> result = mapper.toDtos(buchungen.findAll(spec, PageRequest.of(0, 500, Sort.by(Sort.Direction.DESC, "nummer"))).getContent());
         if (kategorie == null) {
@@ -186,6 +311,8 @@ public class ExpenseService {
     public Buchung find(UUID id) {
         return buchungen.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Buchung nicht gefunden"));
     }
+
+    // ---------- intern
 
     private void requireSubmitted(Buchung b) {
         if (b.art != Art.AUSGABE || b.status != BuchungStatus.EINGEREICHT) {
@@ -214,8 +341,8 @@ public class ExpenseService {
      * Gibt die bereinigten Positionen zurück, die danach gespeichert werden.
      */
     private List<PositionInput> apply(Buchung b, ExpenseInput in, List<MultipartFile> photos, boolean creating) {
-        if (in.datum().isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("Das Datum darf nicht in der Zukunft liegen");
+        if (in.datum() == null || in.datum().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Das Datum darf nicht fehlen oder in der Zukunft liegen");
         }
         if (in.positionen() == null || in.positionen().isEmpty()) {
             throw new IllegalArgumentException("Mindestens eine Position mit Kategorie und Betrag ist nötig");
@@ -237,7 +364,7 @@ public class ExpenseService {
         }
         BigDecimal total = merged.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<MultipartFile> files = photos == null ? List.of() : photos.stream().filter(f -> !f.isEmpty()).toList();
+        List<MultipartFile> files = nonEmpty(photos);
         if (files.size() > MAX_PHOTOS) {
             throw new IllegalArgumentException("Höchstens " + MAX_PHOTOS + " Fotos je Beleg");
         }

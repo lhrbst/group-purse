@@ -240,7 +240,6 @@ function KontoausgabeForm({ onClose }: { onClose: () => void }) {
   const done = useDone();
   return (
     <ExpenseForm
-      mode="create"
       submitLabel="Kontoausgabe buchen"
       submitting={m.isPending}
       hint="Ausgabe, die direkt vom Vereinskonto bezahlt wurde (z. B. größere Anschaffung oder Dauerauftrag)."

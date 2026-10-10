@@ -6,8 +6,8 @@ import java.util.Optional;
 
 /** Schmale Schnittstelle zum KI-Dienst, damit Logik und Aufruf getrennt testbar sind. */
 public interface ReceiptModelClient {
-    /** Rohwerte des Modells; Optional.empty bei Fehler oder Timeout. */
-    Optional<RawReceipt> extract(byte[] image, String mimeType, List<String> categoryNames, String model);
+    /** Rohwerte des Modells für einen Beleg (ggf. mehrere Fotos); Optional.empty bei Fehler oder Timeout. */
+    Optional<RawReceipt> extract(List<ReceiptImage> images, List<String> categoryNames, String model);
 
     /** Eine Kategorie samt Summe aller Bonzeilen, die dazugehören. */
     record RawPosition(String kategorie, BigDecimal betrag) {

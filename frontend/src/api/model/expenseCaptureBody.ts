@@ -5,7 +5,6 @@
  * OpenAPI spec version: v0
  */
 
-export interface PositionSuggestion {
-  kategorieId?: string;
-  betrag?: number;
-}
+export type ExpenseCaptureBody = {
+  photos: (Blob | File)[];
+};

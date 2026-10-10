@@ -400,6 +400,16 @@ Diese Entscheidungen ergänzen die Spezifikation und haben bei Widersprüchen Vo
 - Auswertungen, PDF und CSV arbeiten mit den Positionen; Auswertungen lassen sich nach Haupt- oder Unterkategorie darstellen. Ein Kategoriefilter auf eine Hauptkategorie schließt ihre Unterkategorien ein.
 - Neue Tabelle `buchung_position`; Spalte `parent_id` an den Kategorietabellen. Bestehende Ausgaben bekommen bei der Migration eine Position über den vollen Betrag.
 
+### Belegerfassung im Hintergrund (10.10.2026)
+
+- Das Teammitglied macht **nur ein Foto** (bei langen Bons mehrere) und sendet es ab. Es gibt keine weiteren Eingaben. Das Foto wird vor dem Senden lokal im Gerät gesichert (IndexedDB) und bei fehlendem Netz oder Abbruch automatisch nachgesendet, es geht nicht verloren.
+- Der Beleg wird sofort mit Betrag 0 und dem Status **„wird verarbeitet“** gespeichert. Ein Hintergrundjob im Backend schickt die Fotos an die KI (Timeout 3 Minuten je Aufruf, bis zu 3 Versuche mit Wartezeit, der Auftrag steht in der Datenbank und übersteht Neustarts). Das Ergebnis (Händler, Datum, Positionen mit Kategorien, Summe) wird an den Beleg geschrieben, der Status wird **„eingereicht“**, also zur Prüfung bereit.
+- Ist die KI aus oder scheitert sie dreimal, wird der Beleg **„bitte erfassen“**: Der Kassenverwalter trägt die Daten selbst ein.
+- Der Kassenstand ändert sich erst, wenn der Betrag feststeht. Solange Belege ohne Betrag existieren, zeigen die Startseiten einen Hinweis („N Belege ohne Betrag“).
+- Der Kassenverwalter sieht die Zustände „wird verarbeitet“, „bitte erfassen“ und „zu prüfen“, kann Datum, Händler und Aufteilung jederzeit vor der Prüfung korrigieren und den Beleg bestätigen. Ist das Foto unbrauchbar, gibt er den Beleg mit Hinweis zurück („abgelehnt“); das Teammitglied lädt dann neue Fotos hoch und der Beleg wird erneut gelesen.
+- Ausnahme für verlorene Belege: Ein Beleg kann auch ohne Foto von Hand erfasst werden (mit Pflichtbegründung); der Betrag wird dann sofort abgezogen.
+- Die Plausibilitätsprüfung der KI-Ergebnisse (Summe der Positionen = Endsumme, Datum nicht in der Zukunft) bleibt; die Prüfung gegen den Kassenstand entfällt, weil sie bei Hintergrundverarbeitung veraltet wäre.
+
 ### Begriff „Teammitglied“ (10.10.2026)
 
 In der App heißt die Rolle der Einkaufenden **Teammitglied** statt „Pflegekraft“, weil auch Assistenzkräfte oder andere Personen einkaufen. Wo die Spezifikation „Pflegekraft“ schreibt, ist das Teammitglied gemeint. Die technische Bezeichnung der Rolle (`pflegekraft`) bleibt in Code und Datenbank unverändert.

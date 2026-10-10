@@ -1,56 +1,54 @@
-import { Alert, Stack, Title } from '@mantine/core';
+import { useState } from 'react';
+import { Alert, Button, Stack, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useExpenseGet, useExpenseResubmit } from '../../api/generated/expense-controller/expense-controller';
-import { ExpenseForm, newPosition } from '../../components/ExpenseForm';
+import { useExpenseGet, useExpenseReplacePhotos } from '../../api/generated/expense-controller/expense-controller';
 import { LoadError, Loading } from '../../components/Loading';
-import { notifySuccess } from '../../lib/errors';
+import { PhotoPicker } from '../../components/PhotoPicker';
+import { notifyError, notifySuccess } from '../../lib/errors';
 
+/** Nach einer Ablehnung (Foto unbrauchbar): neue Fotos aufnehmen, der Beleg wird erneut gelesen. */
 export function ExpenseEditPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const q = useExpenseGet(id);
-  const resubmit = useExpenseResubmit();
+  const replace = useExpenseReplacePhotos();
+  const [files, setFiles] = useState<File[]>([]);
 
   if (q.isLoading) return <Loading />;
   if (q.isError || q.data?.status !== 200) return <LoadError error={q.error} />;
   const b = q.data.data;
 
   if (b.status !== 'ABGELEHNT') {
-    return <Alert color="blue">Diese Ausgabe kann nicht mehr geändert werden (Status: {b.status}).</Alert>;
+    return <Alert color="blue">Dieser Beleg kann nicht mehr neu fotografiert werden (Status: {b.status}).</Alert>;
   }
-
-  const positions = (b.positionen ?? []).map((p) => newPosition(p.kategorieId ?? '', (p.betrag ?? 0).toFixed(2).replace('.', ',')));
 
   return (
     <Stack maw={560}>
-      <Title order={2}>Ausgabe korrigieren</Title>
-      {b.ablehnungsKommentar && (
-        <Alert color="red" title="Abgelehnt">
-          {b.ablehnungsKommentar}
-        </Alert>
-      )}
-      <ExpenseForm
-        mode="edit"
-        existingId={b.id}
-        existingPhotos={b.belegAnzahl ?? 0}
-        initial={{
-          datum: b.datum,
-          positionen: positions.length > 0 ? positions : undefined,
-          haendler: b.haendler ?? '',
-          zweck: b.zweck ?? '',
-          begruendungOhneBeleg: b.begruendungOhneBeleg ?? '',
+      <Title order={2}>Beleg neu fotografieren</Title>
+      <Alert color="red" title="Der Kassenverwalter hat den Beleg abgelehnt">
+        {b.ablehnungsKommentar}
+      </Alert>
+      <PhotoPicker files={files} onChange={setFiles} disabled={replace.isPending} />
+      <Button
+        size="xl"
+        h={64}
+        disabled={files.length === 0}
+        loading={replace.isPending}
+        onClick={async () => {
+          try {
+            await replace.mutateAsync({ id, data: { photos: files } });
+            await qc.invalidateQueries();
+            notifySuccess('Neue Fotos gesendet. Der Beleg wird erneut verarbeitet.');
+            navigate('/');
+          } catch (e) {
+            notifyError(e);
+          }
         }}
-        submitLabel="Neu einreichen"
-        submitting={resubmit.isPending}
-        onSubmit={async (input, photos) => {
-          await resubmit.mutateAsync({ id, data: { data: input, photos } });
-          await qc.invalidateQueries();
-          notifySuccess('Ausgabe erneut eingereicht.');
-          navigate('/');
-        }}
-      />
+      >
+        Neue Fotos absenden
+      </Button>
     </Stack>
   );
 }

@@ -18,19 +18,21 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class SpringAiReceiptClient implements ReceiptModelClient {
     private static final Logger log = LoggerFactory.getLogger(SpringAiReceiptClient.class);
-    private static final int TIMEOUT_SECONDS = 25;
     private static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final ChatClient chat;
+    private final ReceiptAiProperties props;
 
-    public SpringAiReceiptClient(ChatClient.Builder builder) {
+    public SpringAiReceiptClient(ChatClient.Builder builder, ReceiptAiProperties props) {
         this.chat = builder.build();
+        this.props = props;
     }
 
     @Override
-    public Optional<RawReceipt> extract(byte[] image, String mimeType, List<String> categoryNames, String model) {
+    public Optional<RawReceipt> extract(List<ReceiptImage> images, List<String> categoryNames, String model) {
         String prompt = """
-                Du liest einen Kassenbon aus Deutschland. Gib nur die Daten im vorgegebenen JSON-Schema zurück.
+                Du liest einen Kassenbon aus Deutschland. Die Fotos gehören alle zu demselben Bon (z. B. ein langer Bon in mehreren Teilen).
+                Gib nur die Daten im vorgegebenen JSON-Schema zurück.
                 - haendler: Name des Geschäfts
                 - datum: Kaufdatum im Format JJJJ-MM-TT
                 - gesamtbetrag: Endsumme des Bons in Euro als Zahl mit Punkt als Dezimaltrenner
@@ -43,11 +45,16 @@ public class SpringAiReceiptClient implements ReceiptModelClient {
                 """.formatted(String.join(", ", categoryNames));
         Future<RawReceipt> call = EXECUTOR.submit(() -> chat.prompt()
                 .options(OpenAiChatOptions.builder().model(model))
-                .user(u -> u.text(prompt).media(MimeTypeUtils.parseMimeType(mimeType), new ByteArrayResource(image)))
+                .user(u -> {
+                    u.text(prompt);
+                    for (ReceiptImage image : images) {
+                        u.media(MimeTypeUtils.parseMimeType(image.mimeType()), new ByteArrayResource(image.bytes()));
+                    }
+                })
                 .call()
                 .entity(RawReceipt.class));
         try {
-            return Optional.ofNullable(call.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            return Optional.ofNullable(call.get(props.timeoutSeconds() > 0 ? props.timeoutSeconds() : 180, TimeUnit.SECONDS));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             call.cancel(true);

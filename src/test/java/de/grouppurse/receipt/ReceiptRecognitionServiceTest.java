@@ -2,8 +2,6 @@ package de.grouppurse.receipt;
 
 import de.grouppurse.category.CategoryDto;
 import de.grouppurse.category.CategoryService;
-import de.grouppurse.domain.Konto;
-import de.grouppurse.ledger.BalanceService;
 import de.grouppurse.receipt.ReceiptModelClient.RawPosition;
 import de.grouppurse.receipt.ReceiptModelClient.RawReceipt;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,11 +27,10 @@ class ReceiptRecognitionServiceTest {
     static final UUID MILCH = UUID.randomUUID();
     static final UUID DROGERIE = UUID.randomUUID();
     static final UUID LEBENSMITTEL = UUID.randomUUID();
-    static final byte[] IMG = {1, 2, 3};
+    static final List<ReceiptImage> IMAGES = List.of(new ReceiptImage(new byte[]{1, 2, 3}, "image/jpeg"));
 
     ReceiptModelClient client = mock(ReceiptModelClient.class);
     CategoryService categories = mock(CategoryService.class);
-    BalanceService balances = mock(BalanceService.class);
     List<CategoryDto> leaves = List.of(
             new CategoryDto(OBST, "Obst und Gemüse", true, false, LEBENSMITTEL),
             new CategoryDto(MILCH, "Milch, Käse und Eier", true, false, LEBENSMITTEL),
@@ -42,11 +39,10 @@ class ReceiptRecognitionServiceTest {
     @BeforeEach
     void setUp() {
         when(categories.leaves()).thenReturn(leaves);
-        when(balances.balance(Konto.BARKASSE)).thenReturn(new BigDecimal("200.00"));
     }
 
     ReceiptRecognitionService service(boolean enabled) {
-        return new ReceiptRecognitionService(client, new ReceiptAiProperties(enabled, "klein", "gross"), categories, balances);
+        return new ReceiptRecognitionService(client, new ReceiptAiProperties(enabled, "klein", "gross", 30), categories);
     }
 
     RawReceipt good() {
@@ -58,62 +54,85 @@ class ReceiptRecognitionServiceTest {
 
     @Test
     void disabledDoesNotCallModel() {
-        assertThat(service(false).recognize(IMG, "image/jpeg")).isEmpty();
-        verify(client, never()).extract(any(), any(), any(), any());
+        assertThat(service(false).recognize(IMAGES)).isEmpty();
+        verify(client, never()).extract(any(), any(), any());
+    }
+
+    @Test
+    void noImagesGivesNothing() {
+        assertThat(service(true).recognize(List.of())).isEmpty();
+        verify(client, never()).extract(any(), any(), any());
     }
 
     @Test
     void splitsTheReceiptIntoSeveralCategories() {
-        when(client.extract(any(), any(), any(), eq("klein"))).thenReturn(Optional.of(good()));
-        var s = service(true).recognize(IMG, "image/jpeg");
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(good()));
+        var s = service(true).recognize(IMAGES);
         assertThat(s).isPresent();
         assertThat(s.get().positionen()).extracting(p -> p.kategorieId()).containsExactly(OBST, MILCH, DROGERIE);
         assertThat(s.get().positionen()).extracting(p -> p.betrag()).usingElementComparator(BigDecimal::compareTo)
                 .containsExactly(new BigDecimal("8.40"), new BigDecimal("6.20"), new BigDecimal("8.80"));
-        verify(client, times(1)).extract(any(), any(), any(), any());
+        verify(client, times(1)).extract(any(), any(), any());
+    }
+
+    @Test
+    void allPhotosOfOneReceiptGoToTheModelTogether() {
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(good()));
+        var two = List.of(IMAGES.get(0), new ReceiptImage(new byte[]{4}, "image/png"));
+        service(true).recognize(two);
+        verify(client).extract(eq(two), any(), eq("klein"));
     }
 
     @Test
     void onlyAssignableCategoriesAreOfferedToTheModel() {
-        when(client.extract(any(), any(), any(), eq("klein"))).thenReturn(Optional.of(good()));
-        service(true).recognize(IMG, "image/jpeg");
-        verify(client).extract(any(), any(), eq(List.of("Obst und Gemüse", "Milch, Käse und Eier", "Drogerie und Hygiene")), eq("klein"));
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(good()));
+        service(true).recognize(IMAGES);
+        verify(client).extract(any(), eq(List.of("Obst und Gemüse", "Milch, Käse und Eier", "Drogerie und Hygiene")), eq("klein"));
     }
 
     @Test
     void positionsThatDoNotAddUpFallBackToStrongerModel() {
         var off = new RawReceipt("REWE", LocalDate.now().toString(), new BigDecimal("23.40"),
                 List.of(new RawPosition("Obst und Gemüse", new BigDecimal("10.00"))));
-        when(client.extract(any(), any(), any(), eq("klein"))).thenReturn(Optional.of(off));
-        when(client.extract(any(), any(), any(), eq("gross"))).thenReturn(Optional.of(good()));
-        var s = service(true).recognize(IMG, "image/jpeg");
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(off));
+        when(client.extract(any(), any(), eq("gross"))).thenReturn(Optional.of(good()));
+        var s = service(true).recognize(IMAGES);
         assertThat(s).isPresent();
         assertThat(s.get().positionen()).hasSize(3);
-        verify(client, times(2)).extract(any(), any(), any(), any());
+        verify(client, times(2)).extract(any(), any(), any());
     }
 
     @Test
     void futureDateFallsBackToStrongerModel() {
         var broken = new RawReceipt("REWE", LocalDate.now().plusDays(3).toString(), new BigDecimal("23.40"),
                 List.of(new RawPosition("Obst und Gemüse", new BigDecimal("23.40"))));
-        when(client.extract(any(), any(), any(), eq("klein"))).thenReturn(Optional.of(broken));
-        when(client.extract(any(), any(), any(), eq("gross"))).thenReturn(Optional.of(good()));
-        var s = service(true).recognize(IMG, "image/jpeg");
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(broken));
+        when(client.extract(any(), any(), eq("gross"))).thenReturn(Optional.of(good()));
+        var s = service(true).recognize(IMAGES);
         assertThat(s).isPresent();
         assertThat(s.get().datum()).isBefore(LocalDate.now());
     }
 
     @Test
     void exceptionInFirstCallStillTriesFallback() {
-        when(client.extract(any(), any(), any(), eq("klein"))).thenThrow(new RuntimeException("boom"));
-        when(client.extract(any(), any(), any(), eq("gross"))).thenReturn(Optional.of(good()));
-        assertThat(service(true).recognize(IMG, "image/jpeg")).isPresent();
+        when(client.extract(any(), any(), eq("klein"))).thenThrow(new RuntimeException("boom"));
+        when(client.extract(any(), any(), eq("gross"))).thenReturn(Optional.of(good()));
+        assertThat(service(true).recognize(IMAGES)).isPresent();
     }
 
     @Test
     void bothFailingGivesEmpty() {
-        when(client.extract(any(), any(), any(), any())).thenReturn(Optional.empty());
-        assertThat(service(true).recognize(IMG, "image/jpeg")).isEmpty();
+        when(client.extract(any(), any(), any())).thenReturn(Optional.empty());
+        assertThat(service(true).recognize(IMAGES)).isEmpty();
+    }
+
+    @Test
+    void anImplausibleResultFromBothModelsIsNotUsed() {
+        var off = new RawReceipt("REWE", LocalDate.now().toString(), new BigDecimal("23.40"),
+                List.of(new RawPosition("Obst und Gemüse", new BigDecimal("10.00"))));
+        when(client.extract(any(), any(), any())).thenReturn(Optional.of(off));
+        assertThat(service(true).recognize(IMAGES)).isEmpty();
+        verify(client, times(2)).extract(any(), any(), any());
     }
 
     @Test

@@ -50,6 +50,15 @@ public class ExpenseController {
         this.mapper = mapper;
     }
 
+    /** Hauptweg für Teammitglieder: nur Fotos hochladen, der Rest passiert im Hintergrund. */
+    @PostMapping(value = "/expenses/capture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public BuchungDto capture(@RequestPart("photos") List<MultipartFile> photos) {
+        access.requireActiveMember();
+        return mapper.toDto(expenses.capture(photos));
+    }
+
+    /** Vollständige Erfassung von Hand, z. B. wenn ein Beleg verloren ging (dann nur mit Begründung). */
     @PostMapping(value = "/expenses", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public BuchungDto submit(@Valid @RequestPart("data") ExpenseInput data,
@@ -58,11 +67,18 @@ public class ExpenseController {
         return mapper.toDto(expenses.submit(data, photos));
     }
 
-    @PutMapping(value = "/expenses/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public BuchungDto resubmit(@PathVariable UUID id, @Valid @RequestPart("data") ExpenseInput data,
-                               @RequestPart(value = "photos", required = false) List<MultipartFile> photos) {
+    /** Nach Ablehnung: neue Fotos hochladen, der Beleg wird erneut gelesen. */
+    @PutMapping(value = "/expenses/{id}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BuchungDto replacePhotos(@PathVariable UUID id, @RequestPart("photos") List<MultipartFile> photos) {
         access.requireActiveMember();
-        return mapper.toDto(expenses.resubmit(id, data, photos));
+        return mapper.toDto(expenses.replacePhotos(id, photos));
+    }
+
+    /** Kassenverwalter trägt Daten ein oder korrigiert den Vorschlag der KI. */
+    @PutMapping("/expenses/{id}/details")
+    public BuchungDto updateDetails(@PathVariable UUID id, @Valid @RequestBody ExpenseInput data) {
+        access.requireKassenverwalter();
+        return mapper.toDto(expenses.updateDetails(id, data));
     }
 
     @PostMapping(value = "/ledger/kontoausgabe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -102,10 +118,9 @@ public class ExpenseController {
                                    @RequestParam(required = false) UUID kategorie,
                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate von,
                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bis,
-                                   @RequestParam(required = false) UUID person,
-                                   @RequestParam(required = false) String bewohner) {
+                                   @RequestParam(required = false) UUID person) {
         access.requireKassenverwalter();
-        return expenses.search(status, kategorie, von, bis, person, bewohner);
+        return expenses.search(status, kategorie, von, bis, person);
     }
 
     @GetMapping("/expenses/{id}")

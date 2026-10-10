@@ -42,6 +42,13 @@ export function ManagerDashboardPage() {
       {d.negativ && <Alert color="red" title="Die Barkasse ist im Minus">Der Kassenstand liegt unter 0 €. Bitte auffüllen oder den Bestand prüfen.</Alert>}
       {d.warnung && !d.negativ && <Alert color="orange" title="Wenig Geld in der Barkasse">Der Kassenstand liegt unter dem eingestellten Mindestbetrag.</Alert>}
 
+      {(d.ohneBetrag ?? 0) > 0 && (
+        <Alert color="blue" title="Belege ohne Betrag">
+          {d.ohneBetrag === 1 ? 'Ein Beleg wird' : `${d.ohneBetrag} Belege werden`} gerade gelesen oder warten auf deine Eingabe. Der Kassenstand enthält
+          {d.ohneBetrag === 1 ? ' diese Ausgabe' : ' diese Ausgaben'} noch nicht. <Button component={Link} to="/pruefung" variant="subtle" size="compact-sm">Zur Prüfung</Button>
+        </Alert>
+      )}
+
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         <Tile title="Barkasse" to="/kasse" action="Zur Kasse">
           <Amount value={d.barkasse} />

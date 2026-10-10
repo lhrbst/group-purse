@@ -46,6 +46,8 @@ app:
     enabled: ${RECEIPT_AI_ENABLED:false}
     model: ${RECEIPT_MODEL:gpt-6-luna}
     fallback-model: ${RECEIPT_FALLBACK_MODEL:gpt-6.1-sol}
+    # Belege werden im Hintergrund gelesen, deshalb darf ein einzelner KI-Aufruf lange dauern
+    timeout-seconds: ${RECEIPT_TIMEOUT_SECONDS:180}
 
 springdoc:
   api-docs:

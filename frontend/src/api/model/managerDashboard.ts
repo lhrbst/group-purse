@@ -14,4 +14,5 @@ export interface ManagerDashboard {
   letzteBestandserfassung?: string;
   warnung?: boolean;
   negativ?: boolean;
+  ohneBetrag?: number;
 }

@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,7 +31,7 @@ public interface BuchungRepository extends JpaRepository<Buchung, UUID>, JpaSpec
 
     long countByStatus(BuchungStatus status);
 
-    List<Buchung> findByStatusOrderByNummerAsc(BuchungStatus status);
+    List<Buchung> findByStatusInOrderByNummerAsc(Collection<BuchungStatus> status);
 
     List<Buchung> findByErfasstVonAndArtAndErfasstAmAfterOrderByNummerDesc(UUID erfasstVon, Art art, Instant after);
 

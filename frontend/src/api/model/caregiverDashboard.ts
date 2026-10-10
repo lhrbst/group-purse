@@ -10,5 +10,6 @@ export interface CaregiverDashboard {
   barkasse?: number;
   warnung?: boolean;
   negativ?: boolean;
+  ohneBetrag?: number;
   eigeneAusgaben?: BuchungDto[];
 }

@@ -14,6 +14,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -100,41 +101,45 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
         expectCash(100);
     }
 
-    @Test
-    void rejectKeepsBalanceAndAllowsResubmitThenApproveLocks() throws Exception {
-        String id = submit(pk, "30.00");
-        mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\" \"}"))
-                .andExpect(status().isBadRequest());
-        // eingereichte Ausgabe kann die Pflegekraft nicht selbst ändern
-        mvc.perform(form("/api/expenses/" + id, data("25.00", LocalDate.now().toString(), ""), false).with(csrf())
+    MockMultipartHttpServletRequestBuilder photosPut(String id) {
+        return multipart("/api/expenses/" + id + "/photos").file(new MockMultipartFile("photos", "neu.jpg", "image/jpeg", jpeg()))
                 .with(req -> {
                     req.setMethod("PUT");
                     return req;
-                }).session(pk)).andExpect(status().isConflict());
+                });
+    }
 
-        mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\"Betrag falsch\"}"))
+    @Test
+    void rejectedReceiptGetsNewPhotosThenTheManagerCompletesIt() throws Exception {
+        String id = submit(pk, "30.00");
+        mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\" \"}"))
+                .andExpect(status().isBadRequest());
+        // ein eingereichter Beleg kann vom Teammitglied nicht neu fotografiert werden
+        mvc.perform(photosPut(id).with(csrf()).session(pk)).andExpect(status().isConflict());
+
+        mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\"Foto unscharf\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ABGELEHNT"));
         expectCash(70);
-        mvc.perform(get("/api/expenses/mine").session(pk)).andExpect(jsonPath("$[0].ablehnungsKommentar").value("Betrag falsch"));
+        mvc.perform(get("/api/expenses/mine").session(pk)).andExpect(jsonPath("$[0].ablehnungsKommentar").value("Foto unscharf"));
 
-        mvc.perform(form("/api/expenses/" + id, data("25.00", LocalDate.now().toString(), ""), false).with(csrf())
-                        .with(req -> {
-                            req.setMethod("PUT");
-                            return req;
-                        }).session(pk))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EINGEREICHT"))
-                .andExpect(jsonPath("$.belegAnzahl").value(1));
+        // neues Foto: Der Betrag ist wieder offen, die KI ist in diesem Test aus, der Beleg geht zur manuellen Erfassung
+        mvc.perform(photosPut(id).with(csrf()).session(pk))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("MANUELL"))
+                .andExpect(jsonPath("$.betrag").value(0.0)).andExpect(jsonPath("$.positionen.length()").value(0));
+        expectCash(100);
+
+        mvc.perform(put("/api/expenses/" + id + "/details").with(csrf()).session(kv).contentType(JSON)
+                        .content(positionsData(haushalt, "25.00")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EINGEREICHT")).andExpect(jsonPath("$.betrag").value(-25.0));
         expectCash(75);
 
         mvc.perform(post("/api/expenses/" + id + "/approve").with(csrf()).session(kv))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("GEPRUEFT"));
         mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\"zu spät\"}"))
                 .andExpect(status().isConflict());
-        mvc.perform(form("/api/expenses/" + id, data("20.00", LocalDate.now().toString(), ""), false).with(csrf())
-                .with(req -> {
-                    req.setMethod("PUT");
-                    return req;
-                }).session(pk)).andExpect(status().isConflict());
+        mvc.perform(photosPut(id).with(csrf()).session(pk)).andExpect(status().isConflict());
+        mvc.perform(put("/api/expenses/" + id + "/details").with(csrf()).session(kv).contentType(JSON).content(positionsData(haushalt, "20.00")))
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -257,16 +262,12 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void resubmitCanChangeTheSplit() throws Exception {
+    void managerCanChangeTheSplitBeforeApproving() throws Exception {
         String id = submit(pk, "30.00");
-        mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\"Bitte aufteilen\"}"))
-                .andExpect(status().isOk());
         String obst = categoryId("Obst und Gemüse");
         String milch = categoryId("Milch, Käse und Eier");
-        mvc.perform(form("/api/expenses/" + id, positionsData(obst, "10.00", milch, "5.00"), false).with(csrf()).with(req -> {
-                    req.setMethod("PUT");
-                    return req;
-                }).session(pk))
+        mvc.perform(put("/api/expenses/" + id + "/details").with(csrf()).session(kv).contentType(JSON)
+                        .content(positionsData(obst, "10.00", milch, "5.00")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.betrag").value(-15.0))
                 .andExpect(jsonPath("$.positionen.length()").value(2));
@@ -280,5 +281,54 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/expenses?kategorie=" + categoryId("Lebensmittel")).session(kv)).andExpect(jsonPath("$.length()").value(1));
         mvc.perform(get("/api/expenses?kategorie=" + obst).session(kv)).andExpect(jsonPath("$.length()").value(1));
         mvc.perform(get("/api/expenses?kategorie=" + haushalt).session(kv)).andExpect(jsonPath("$.length()").value(0));
+    }
+
+
+    String capture(MockHttpSession session) throws Exception {
+        String body = mvc.perform(multipart("/api/expenses/capture").file(new MockMultipartFile("photos", "b.jpg", "image/jpeg", jpeg()))
+                        .with(csrf()).session(session))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(body, "$.id");
+    }
+
+    @Test
+    void photoOnlyCaptureWithAiOffGoesToManualEntryWithoutTouchingTheCash() throws Exception {
+        String id = capture(pk);
+        mvc.perform(get("/api/expenses/" + id).session(kv))
+                .andExpect(jsonPath("$.status").value("MANUELL"))
+                .andExpect(jsonPath("$.betrag").value(0.0))
+                .andExpect(jsonPath("$.belegAnzahl").value(1))
+                .andExpect(jsonPath("$.positionen.length()").value(0));
+        expectCash(100);
+        mvc.perform(get("/api/expenses/pending").session(kv)).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/dashboard/manager").session(kv)).andExpect(jsonPath("$.ohneBetrag").value(1));
+        mvc.perform(get("/api/dashboard/caregiver").session(pk)).andExpect(jsonPath("$.ohneBetrag").value(1));
+        mvc.perform(get("/api/receipts/" + id + "/0").session(pk)).andExpect(status().isOk());
+    }
+
+    @Test
+    void captureNeedsAtLeastOneRealPhoto() throws Exception {
+        mvc.perform(multipart("/api/expenses/capture").with(csrf()).session(pk)).andExpect(status().isBadRequest());
+        mvc.perform(multipart("/api/expenses/capture").file(new MockMultipartFile("photos", "x.jpg", "image/jpeg", "kein Bild".getBytes()))
+                .with(csrf()).session(pk)).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/expenses/pending").session(kv)).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void onlyManagersMayEnterOrCorrectTheData() throws Exception {
+        String id = capture(pk);
+        mvc.perform(put("/api/expenses/" + id + "/details").with(csrf()).session(pk).contentType(JSON).content(positionsData(haushalt, "5.00")))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/expenses/" + id + "/details").with(csrf()).session(kv).contentType(JSON)
+                .content(positionsData(categoryId("Lebensmittel"), "5.00"))).andExpect(status().isBadRequest());
+        MockHttpSession otherPk = t.pflegekraft(g);
+        mvc.perform(photosPut(submitAndReject()).with(csrf()).session(otherPk)).andExpect(status().isForbidden());
+    }
+
+    private String submitAndReject() throws Exception {
+        String id = submit(pk, "10.00");
+        mvc.perform(post("/api/expenses/" + id + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\"nochmal\"}"))
+                .andExpect(status().isOk());
+        return id;
     }
 }

@@ -5,5 +5,4 @@ export * from './contribution-controller/contribution-controller';
 export * from './expense-controller/expense-controller';
 export * from './ledger-controller/ledger-controller';
 export * from './member-controller/member-controller';
-export * from './receipt-controller/receipt-controller';
 export * from './report-controller/report-controller';

@@ -10,17 +10,17 @@ public final class ReceiptPlausibility {
     }
 
     /**
-     * Händler, Datum und Betrag gesetzt, Datum nicht in der Zukunft, Betrag größer 0 und kleiner als der Kassenstand;
-     * mindestens eine Position, jede mit bekannter Kategorie und Betrag größer 0, und die Summe der Positionen entspricht der Endsumme.
+     * Händler, Datum und Betrag gesetzt, Datum nicht in der Zukunft, Betrag größer 0; mindestens eine Position, jede mit bekannter
+     * Kategorie und Betrag größer 0, und die Summe der Positionen entspricht der Endsumme.
      */
-    public static boolean isPlausible(ReceiptSuggestion s, LocalDate today, BigDecimal kassenstand) {
+    public static boolean isPlausible(ReceiptSuggestion s, LocalDate today) {
         if (s == null || s.haendler() == null || s.haendler().isBlank()) {
             return false;
         }
         if (s.datum() == null || s.datum().isAfter(today)) {
             return false;
         }
-        if (s.betrag() == null || s.betrag().signum() <= 0 || s.betrag().compareTo(kassenstand) >= 0) {
+        if (s.betrag() == null || s.betrag().signum() <= 0) {
             return false;
         }
         if (s.positionen() == null || s.positionen().isEmpty()) {

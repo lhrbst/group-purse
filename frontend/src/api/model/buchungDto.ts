@@ -33,4 +33,5 @@ export interface BuchungDto {
   geprueftVon?: string;
   geprueftAm?: string;
   positionen?: PositionDto[];
+  verarbeitungFehler?: string;
 }

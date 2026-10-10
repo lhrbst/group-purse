@@ -12,6 +12,7 @@ import { HomePage } from './pages/HomePage';
 import { ExpenseCapturePage } from './pages/caregiver/ExpenseCapturePage';
 import { MyExpensesPage } from './pages/caregiver/MyExpensesPage';
 import { ExpenseEditPage } from './pages/caregiver/ExpenseEditPage';
+import { ExpenseManualPage } from './pages/caregiver/ExpenseManualPage';
 import { ReviewListPage } from './pages/manager/ReviewListPage';
 import { CashPage } from './pages/manager/CashPage';
 import { ContributionsPage } from './pages/manager/ContributionsPage';
@@ -52,6 +53,7 @@ export function App() {
       >
         <Route index element={<HomePage />} />
         <Route path="beleg" element={<RequireRole roles={['manager', 'caregiver']}><ExpenseCapturePage /></RequireRole>} />
+        <Route path="beleg/ohne-foto" element={<RequireRole roles={['manager', 'caregiver']}><ExpenseManualPage /></RequireRole>} />
         <Route path="meine-ausgaben" element={<RequireRole roles={['manager', 'caregiver']}><MyExpensesPage /></RequireRole>} />
         <Route path="ausgaben/:id/korrigieren" element={<RequireRole roles={['manager', 'caregiver']}><ExpenseEditPage /></RequireRole>} />
         <Route path="pruefung" element={<RequireRole roles={['manager']}><ReviewListPage /></RequireRole>} />

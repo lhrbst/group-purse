@@ -13,10 +13,11 @@ public final class ReportDtos {
     }
 
     public record ManagerDashboard(BigDecimal barkasse, BigDecimal vereinskonto, long eingereichtAnzahl,
-                                   Summary offeneBeitraege, Instant letzteBestandserfassung, boolean warnung, boolean negativ) {
+                                   Summary offeneBeitraege, Instant letzteBestandserfassung, boolean warnung, boolean negativ,
+                                   long ohneBetrag) {
     }
 
-    public record CaregiverDashboard(BigDecimal barkasse, boolean warnung, boolean negativ, List<BuchungDto> eigeneAusgaben) {
+    public record CaregiverDashboard(BigDecimal barkasse, boolean warnung, boolean negativ, long ohneBetrag, List<BuchungDto> eigeneAusgaben) {
     }
 
     public record CategoryMonthSum(String monat, String kategorie, BigDecimal summe) {

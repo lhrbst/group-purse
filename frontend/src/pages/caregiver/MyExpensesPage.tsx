@@ -4,7 +4,10 @@ import { ExpenseList } from '../../components/ExpenseList';
 import { LoadError, Loading } from '../../components/Loading';
 
 export function MyExpensesPage() {
-  const q = useExpenseMine({ days: 365 });
+  const q = useExpenseMine(
+    { days: 365 },
+    { query: { refetchInterval: (query) => (query.state.data?.status === 200 && query.state.data.data.some((b) => b.status === 'VERARBEITUNG') ? 8000 : false) } },
+  );
   if (q.isLoading) return <Loading />;
   if (q.isError || q.data?.status !== 200) return <LoadError error={q.error} />;
   return (

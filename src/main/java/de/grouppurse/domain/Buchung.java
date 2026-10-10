@@ -41,4 +41,9 @@ public class Buchung extends TenantEntity {
     public Instant erfasstAm = Instant.now();
     public UUID geprueftVon;
     public Instant geprueftAm;
+    /** Hintergrundverarbeitung der Belegerkennung: Versuche, letzter Fehler und Zeitpunkte (vom Job gepflegt). */
+    public int verarbeitungVersuche;
+    public String verarbeitungFehler;
+    public Instant verarbeitungGestartetAm;
+    public Instant verarbeitungNaechsterVersuch;
 }

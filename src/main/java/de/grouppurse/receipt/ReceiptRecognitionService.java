@@ -2,8 +2,6 @@ package de.grouppurse.receipt;
 
 import de.grouppurse.category.CategoryDto;
 import de.grouppurse.category.CategoryService;
-import de.grouppurse.domain.Konto;
-import de.grouppurse.ledger.BalanceService;
 import de.grouppurse.receipt.ReceiptModelClient.RawReceipt;
 import de.grouppurse.receipt.ReceiptSuggestion.PositionSuggestion;
 import org.slf4j.Logger;
@@ -26,13 +24,11 @@ public class ReceiptRecognitionService {
     private final ReceiptModelClient client;
     private final ReceiptAiProperties props;
     private final CategoryService categories;
-    private final BalanceService balances;
 
-    public ReceiptRecognitionService(ReceiptModelClient client, ReceiptAiProperties props, CategoryService categories, BalanceService balances) {
+    public ReceiptRecognitionService(ReceiptModelClient client, ReceiptAiProperties props, CategoryService categories) {
         this.client = client;
         this.props = props;
         this.categories = categories;
-        this.balances = balances;
     }
 
     public boolean enabled() {
@@ -40,33 +36,28 @@ public class ReceiptRecognitionService {
     }
 
     /**
-     * Liest den Bon mit dem kleinen Modell und teilt die Zeilen auf die wählbaren Kategorien auf. Ist ein Feld leer, die Aufteilung
-     * unvollständig oder die Summe der Positionen nicht gleich der Endsumme, geht derselbe Bon einmal an das stärkere Modell.
-     * Leer, wenn die Erkennung aus ist oder beide Aufrufe scheitern.
+     * Liest den Beleg mit dem kleinen Modell und teilt die Zeilen auf die wählbaren Kategorien auf. Ist ein Feld leer, die Aufteilung
+     * unvollständig oder die Summe der Positionen nicht gleich der Endsumme, geht derselbe Beleg einmal an das stärkere Modell.
+     * Liefert nur ein plausibles Ergebnis, sonst leer (Beleg wird dann wiederholt bzw. manuell erfasst).
      */
-    public Optional<ReceiptSuggestion> recognize(byte[] image, String mimeType) {
-        if (!props.enabled()) {
+    public Optional<ReceiptSuggestion> recognize(List<ReceiptImage> images) {
+        if (!props.enabled() || images.isEmpty()) {
             return Optional.empty();
         }
         List<CategoryDto> leaves = categories.leaves();
         List<String> names = leaves.stream().map(CategoryDto::name).toList();
-        var kassenstand = balances.balance(Konto.BARKASSE);
         LocalDate today = LocalDate.now();
 
-        Optional<ReceiptSuggestion> first = attempt(image, mimeType, names, leaves, props.model());
-        if (first.isPresent() && ReceiptPlausibility.isPlausible(first.get(), today, kassenstand)) {
+        Optional<ReceiptSuggestion> first = attempt(images, names, leaves, props.model());
+        if (first.isPresent() && ReceiptPlausibility.isPlausible(first.get(), today)) {
             return first;
         }
-        Optional<ReceiptSuggestion> second = attempt(image, mimeType, names, leaves, props.fallbackModel());
-        if (second.isPresent() && ReceiptPlausibility.isPlausible(second.get(), today, kassenstand)) {
-            return second;
-        }
-        return second.isPresent() ? second : first;
+        return attempt(images, names, leaves, props.fallbackModel()).filter(s -> ReceiptPlausibility.isPlausible(s, today));
     }
 
-    private Optional<ReceiptSuggestion> attempt(byte[] image, String mimeType, List<String> names, List<CategoryDto> leaves, String model) {
+    private Optional<ReceiptSuggestion> attempt(List<ReceiptImage> images, List<String> names, List<CategoryDto> leaves, String model) {
         try {
-            return client.extract(image, mimeType, names, model).map(raw -> map(raw, leaves));
+            return client.extract(images, names, model).map(raw -> map(raw, leaves));
         } catch (RuntimeException e) {
             log.warn("Belegerkennung mit {} fehlgeschlagen: {}", model, e.toString());
             return Optional.empty();

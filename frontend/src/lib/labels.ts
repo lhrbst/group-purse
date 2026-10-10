@@ -14,6 +14,8 @@ export const STATUS_LABEL: Record<string, string> = {
   GEPRUEFT: 'geprüft',
   ABGELEHNT: 'abgelehnt',
   STORNIERT: 'storniert',
+  VERARBEITUNG: 'wird verarbeitet',
+  MANUELL: 'bitte erfassen',
 };
 
 export const STATUS_COLOR: Record<string, string> = {
@@ -22,6 +24,8 @@ export const STATUS_COLOR: Record<string, string> = {
   GEPRUEFT: 'green',
   ABGELEHNT: 'red',
   STORNIERT: 'gray',
+  VERARBEITUNG: 'violet',
+  MANUELL: 'orange',
 };
 
 export const KONTO_LABEL: Record<string, string> = {

@@ -14,4 +14,6 @@ export const ExpenseSearchStatus = {
   GEPRUEFT: 'GEPRUEFT',
   ABGELEHNT: 'ABGELEHNT',
   STORNIERT: 'STORNIERT',
+  VERARBEITUNG: 'VERARBEITUNG',
+  MANUELL: 'MANUELL',
 } as const;

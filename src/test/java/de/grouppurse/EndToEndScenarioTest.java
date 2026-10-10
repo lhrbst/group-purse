@@ -88,12 +88,14 @@ class EndToEndScenarioTest extends AbstractIntegrationTest {
 
         mvc.perform(post("/api/expenses/" + expenseId + "/reject").with(csrf()).session(kv).contentType(JSON).content("{\"kommentar\":\"Betrag stimmt nicht\"}"))
                 .andExpect(status().isOk());
-        mvc.perform(multipart("/api/expenses/" + expenseId)
-                        .file(new MockMultipartFile("data", "", JSON, expenseJson("28.50", category).getBytes(StandardCharsets.UTF_8)))
+        // Foto unbrauchbar: neues Foto hochladen (die KI ist in diesem Test aus, also trägt der Kassenverwalter die Daten ein)
+        mvc.perform(multipart("/api/expenses/" + expenseId + "/photos").file(new MockMultipartFile("photos", "neu.jpg", "image/jpeg", JPEG))
                         .with(csrf()).with(r -> {
                             r.setMethod("PUT");
                             return r;
                         }).session(pk))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("MANUELL"));
+        mvc.perform(put("/api/expenses/" + expenseId + "/details").with(csrf()).session(kv).contentType(JSON).content(expenseJson("28.50", category)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EINGEREICHT"));
         mvc.perform(post("/api/expenses/" + expenseId + "/approve").with(csrf()).session(kv)).andExpect(status().isOk());
         mvc.perform(get("/api/dashboard/manager").session(kv))

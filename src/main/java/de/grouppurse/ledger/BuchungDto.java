@@ -14,5 +14,5 @@ public record BuchungDto(UUID id, long nummer, Konto konto, Art art, BigDecimal 
                          UUID kategorieId, String zweck, String haendler, String bewohnerKuerzel, BuchungStatus status,
                          int belegAnzahl, boolean ohneBeleg, String begruendungOhneBeleg, String ablehnungsKommentar,
                          UUID stornoVon, UUID gruppeId, UUID erfasstVon, String erfasstVonName, Instant erfasstAm,
-                         UUID geprueftVon, Instant geprueftAm, List<PositionDto> positionen) {
+                         UUID geprueftVon, Instant geprueftAm, List<PositionDto> positionen, String verarbeitungFehler) {
 }

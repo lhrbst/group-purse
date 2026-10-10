@@ -69,13 +69,18 @@ public class ReportService {
         BigDecimal kasse = balances.balance(Konto.BARKASSE);
         return new ManagerDashboard(kasse, balances.balance(Konto.VEREINSKONTO),
                 buchungen.countByStatus(BuchungStatus.EINGEREICHT), grid.summary(heute), g.letzteBestandserfassung,
-                kasse.compareTo(g.mindestbetragKasse) < 0, kasse.signum() < 0);
+                kasse.compareTo(g.mindestbetragKasse) < 0, kasse.signum() < 0, withoutAmount());
+    }
+
+    /** Belege, deren Betrag noch offen ist (KI liest noch oder muss von Hand erfasst werden). */
+    private long withoutAmount() {
+        return buchungen.countByStatus(BuchungStatus.VERARBEITUNG) + buchungen.countByStatus(BuchungStatus.MANUELL);
     }
 
     public CaregiverDashboard caregiver() {
         Wohngruppe g = group();
         BigDecimal kasse = balances.balance(Konto.BARKASSE);
-        return new CaregiverDashboard(kasse, kasse.compareTo(g.mindestbetragKasse) < 0, kasse.signum() < 0, expenses.mine(30));
+        return new CaregiverDashboard(kasse, kasse.compareTo(g.mindestbetragKasse) < 0, kasse.signum() < 0, withoutAmount(), expenses.mine(30));
     }
 
     public List<CategoryMonthSum> expensesByCategoryAndMonth(LocalDate von, LocalDate bis, UUID person, String bewohner, UUID kategorie) {

@@ -6,7 +6,12 @@ import { ExpenseList } from '../../components/ExpenseList';
 import { LoadError, Loading } from '../../components/Loading';
 
 export function CaregiverHomePage() {
-  const q = useReportCaregiver();
+  const q = useReportCaregiver({
+    query: {
+      refetchInterval: (query) =>
+        query.state.data?.status === 200 && (query.state.data.data.eigeneAusgaben ?? []).some((b) => b.status === 'VERARBEITUNG') ? 8000 : false,
+    },
+  });
   if (q.isLoading) return <Loading />;
   if (q.isError || q.data?.status !== 200) return <LoadError error={q.error} />;
   const d = q.data.data;
@@ -24,6 +29,11 @@ export function CaregiverHomePage() {
             <Amount value={d.barkasse} />
           </Title>
         </Group>
+        {(d.ohneBetrag ?? 0) > 0 && (
+          <Text size="xs" c="dimmed" mt={4}>
+            {d.ohneBetrag === 1 ? '1 Beleg' : `${d.ohneBetrag} Belege`} noch ohne Betrag: Der Stand enthält {d.ohneBetrag === 1 ? 'ihn' : 'sie'} noch nicht.
+          </Text>
+        )}
       </Card>
 
       {d.negativ && (

@@ -50,6 +50,6 @@ public class BuchungMapper {
         return new BuchungDto(b.id, b.nummer, b.konto, b.art, b.betrag, b.datum, b.kategorieId, b.zweck, b.haendler,
                 b.bewohnerKuerzel, b.status, b.belegFotos.size(), expense && b.belegFotos.isEmpty(),
                 b.begruendungOhneBeleg, b.ablehnungsKommentar, b.stornoVon, b.gruppeId, b.erfasstVon, name,
-                b.erfasstAm, b.geprueftVon, b.geprueftAm, pos);
+                b.erfasstAm, b.geprueftVon, b.geprueftAm, pos, b.verarbeitungFehler);
     }
 }
