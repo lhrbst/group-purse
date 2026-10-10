@@ -16,6 +16,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 @Configuration
 public class SecurityConfig {
@@ -47,6 +48,12 @@ public class SecurityConfig {
                 .csrf(c -> c.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(csrfHandler))
                 .securityContext(c -> c.securityContextRepository(repo))
+                .headers(h -> h
+                        .contentSecurityPolicy(c -> c.policyDirectives(
+                                "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; "
+                                        + "script-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
+                                        + "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"))
+                        .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.SAME_ORIGIN)))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
