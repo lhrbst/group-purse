@@ -11,20 +11,31 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 public abstract class AbstractIntegrationTest {
 
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+    static final Path STORAGE;
 
     static {
         POSTGRES.start();
+        try {
+            STORAGE = Files.createTempDirectory("grouppurse-receipts");
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
         r.add("server.servlet.session.cookie.secure", () -> "false");
+        r.add("app.storage.dir", STORAGE::toString);
     }
 
     @Autowired
