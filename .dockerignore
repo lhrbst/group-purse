@@ -1,0 +1,10 @@
+.git
+.idea
+target
+data
+frontend/node_modules
+frontend/dist
+src/main/resources/static
+**/*.log
+.env
+docs

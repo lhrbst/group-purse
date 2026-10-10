@@ -1,0 +1,76 @@
+name: gruppenkasse
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # Zertifikate: muss erhalten bleiben (Let's-Encrypt-Rate-Limits)
+      - caddy_config:/config
+    depends_on:
+      - app
+    mem_limit: 100m
+
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/grouppurse
+      DB_USER: grouppurse
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_BASE_URL: https://${DOMAIN}
+      COOKIE_SECURE: "true"
+      STORAGE_DIR: /data/receipts
+      MAIL_FROM: ${MAIL_FROM}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_AUTH: ${SMTP_AUTH}
+      SMTP_STARTTLS: ${SMTP_STARTTLS}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RECEIPT_AI_ENABLED: ${RECEIPT_AI_ENABLED}
+      RECEIPT_MODEL: ${RECEIPT_MODEL}
+      RECEIPT_FALLBACK_MODEL: ${RECEIPT_FALLBACK_MODEL}
+      VAPID_PUBLIC: ${VAPID_PUBLIC}
+      VAPID_PRIVATE: ${VAPID_PRIVATE}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+    volumes:
+      - receipts:/data/receipts
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8080"
+    mem_limit: 700m
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: grouppurse
+      POSTGRES_USER: grouppurse
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres.conf:/etc/postgresql/postgresql.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grouppurse -d grouppurse"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 300m
+
+volumes:
+  caddy_data:
+  caddy_config:
+  receipts:
+  pgdata:

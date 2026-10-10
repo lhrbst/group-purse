@@ -1,0 +1,10 @@
+{$DOMAIN} {
+	reverse_proxy app:8080
+	encode gzip
+	request_body {
+		max_size 20MB
+	}
+	header {
+		-Server
+	}
+}
