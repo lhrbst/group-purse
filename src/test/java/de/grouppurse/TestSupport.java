@@ -8,13 +8,19 @@ import de.grouppurse.domain.Wohngruppe;
 import de.grouppurse.repo.MitgliedschaftRepository;
 import de.grouppurse.repo.PersonRepository;
 import de.grouppurse.repo.WohngruppeRepository;
+import de.grouppurse.security.AppPrincipal;
+import de.grouppurse.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -91,5 +97,26 @@ public class TestSupport {
         Person p = person("pk", false);
         member(p, g, Rolle.PFLEGEKRAFT, MitgliedStatus.AKTIV);
         return sessionFor(p, g);
+    }
+
+    /** Führt Service-Code als angemeldete Person im Mandanten der Gruppe aus (ohne HTTP). */
+    public <T> T as(Person p, Wohngruppe g, Supplier<T> action) {
+        var previous = SecurityContextHolder.getContext();
+        var ctx = SecurityContextHolder.createEmptyContext();
+        ctx.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
+                new AppPrincipal(p.id, p.name, p.email, p.istAdmin), null, AuthorityUtils.createAuthorityList("ROLE_USER")));
+        SecurityContextHolder.setContext(ctx);
+        try {
+            return TenantContext.callAs(g.id, action);
+        } finally {
+            SecurityContextHolder.setContext(previous);
+        }
+    }
+
+    public void as(Person p, Wohngruppe g, Runnable action) {
+        as(p, g, () -> {
+            action.run();
+            return null;
+        });
     }
 }
