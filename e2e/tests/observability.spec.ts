@@ -45,6 +45,10 @@ test.describe('Observability', () => {
       value(before, 'gk_receipt_ai_duration_seconds_count', { outcome: 'ok' }),
     );
     expect(value(after, 'gk_receipt_ai_results_total', { result: 'usable' })).toBeGreaterThan(value(before, 'gk_receipt_ai_results_total', { result: 'usable' }));
+    // Histogramme für die Dashboards (Perzentile) und Token-Verbrauch aus Spring AI
+    expect(after).toContain('gk_receipt_ai_duration_seconds_bucket{');
+    expect(after).toContain('gk_receipt_end_to_end_seconds_bucket{');
+    expect(after).toMatch(/gen_ai_client_token_usage_total\{[^}]*gen_ai_token_type="input"/);
     // keine Personen, Gruppen oder Beträge in den Metriken
     expect(after).not.toContain(world.manager.email);
     expect(after).not.toContain(world.groupName);
