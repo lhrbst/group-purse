@@ -9,7 +9,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # 2) Backend bauen, das gebaute Frontend wird ins JAR gepackt (Tests laufen in der CI, nicht hier)
-FROM maven:3.9-eclipse-temurin-25 AS backend
+FROM maven:3.9-eclipse-temurin-26 AS backend
 WORKDIR /build
 COPY pom.xml ./
 RUN mvn -q -B dependency:go-offline
