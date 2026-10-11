@@ -17,6 +17,7 @@ services:
       DB_PASSWORD: grouppurse
       APP_BASE_URL: http://localhost:8080
       COOKIE_SECURE: "false"      # lokal ohne HTTPS
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash   # JSON-Logs für Loki
       OPENAI_API_KEY: ${OPENAI_API_KEY:-disabled}
       RECEIPT_AI_ENABLED: ${RECEIPT_AI_ENABLED:-false}
     volumes:

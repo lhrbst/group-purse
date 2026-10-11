@@ -27,6 +27,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       APP_BASE_URL: https://${DOMAIN}
       COOKIE_SECURE: "true"
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash   # JSON-Logs für Loki
       STORAGE_DIR: /data/receipts
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       RECEIPT_AI_ENABLED: ${RECEIPT_AI_ENABLED}
