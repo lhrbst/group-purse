@@ -418,7 +418,7 @@ In der App heißt die Rolle der Einkaufenden **Teammitglied** statt „Pflegekra
 
 ### Zurückgestellt (10.10.2026)
 
-- **Export für die Kassenprüfung** (Jahresabschluss als PDF, Buchungen als CSV, ZIP der Belegfotos) ist in Version 1 entfernt. Die Funktion fehlt im Funktionsumfang, bis sie wieder gebraucht und getestet wird.
+- **Export für die Kassenprüfung** (Jahresabschluss als PDF, Buchungen als CSV, ZIP der Belegfotos) ist in Version 1 entfernt. Die Funktion fehlt im Funktionsumfang, bis sie wieder gebraucht und getestet wird. Ausnahme seit 11.10.2026: der **PDF-Monatsbericht** mit Textübersicht der Ausgaben (siehe `docs/superpowers/specs/2026-10-11-monatsbericht-design.md`); CSV, Beleg-ZIP und Jahresabschluss bleiben zurückgestellt.
 - Das optionale Feld **Bewohner** an Ausgaben (und der Bewohner-Filter in den Auswertungen) entfällt. Die Familien behalten ihr Bewohnerkürzel.
 
 ### Technische Festlegungen
