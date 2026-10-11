@@ -35,7 +35,7 @@ Speicherlimits je Container (Richtwerte): Prometheus 300 MB, Loki 300 MB, Grafan
 2. **Management-Port 8081** (`management.server.port`). Er wird in Docker nicht veröffentlicht und nicht von Caddy durchgereicht. Folgen: Dockerfile-HEALTHCHECK, `deploy.sh` (`healthy`), E2E-Stack und `docker-compose.yml` (lokal) zeigen auf 8081. Die öffentliche Adresse `/actuator/health` bleibt über eine Caddy-Route auf `app:8081` für den externen Uptime-Check erhalten, nur `health` (keine anderen Actuator-Pfade). `SecurityConfig` und `SpaConfig` passen darauf an.
 3. **Strukturierte Logs:** `logging.structured.format.console=logstash` in Produktion (per Umgebungsvariable umschaltbar, lokal bleibt Klartext). Ein Filter vergibt je Anfrage eine Request-ID (MDC `requestId`, auch als Antwort-Header `X-Request-Id`) und setzt `wohngruppeId` aus dem Mandantenkontext. Keine Namen, E-Mails, Beträge oder Tokens in Logzeilen.
 4. **Technische Metriken** kommen aus Spring Boot: JVM, GC, Threads, Tomcat, HikariCP, HTTP-Server mit Histogrammen (Route als Template, nie die konkrete URL), Logback-Zähler, Flyway, `@Scheduled`-Läufe. Perzentil-Histogramme für `http.server.requests` und die Belegerkennung aktivieren.
-5. **Fachliche Metriken** (Präfix `gk_`, Labels nur mit begrenzter Kardinalität, keine Personen):
+5. **Fachliche Metriken** (Präfix `gk_`, Labels nur mit begrenzter Kardinalität, keine Personen, keine Gruppen, keine Beträge):
 
 | Metrik | Art | Labels |
 | --- | --- | --- |
@@ -47,13 +47,8 @@ Speicherlimits je Container (Richtwerte): Prometheus 300 MB, Loki 300 MB, Grafan
 | `gk_receipt_ai_duration_seconds` | Timer | `model`, `outcome` (ok, uncertain, implausible, error, timeout) |
 | `gk_receipt_ai_fallback_total`, `gk_receipt_ai_gave_up_total` | Zähler | `reason` |
 | `gk_receipt_end_to_end_seconds` | Timer | `outcome`; Zeit von der Aufnahme bis zum Ergebnis (EINGEREICHT oder MANUELL) |
-| `gk_receipts_open` | Gauge | `gruppe`, `status` (VERARBEITUNG, MANUELL, EINGEREICHT) |
-| `gk_oldest_open_receipt_age_seconds` | Gauge | `gruppe`, `status` |
-| `gk_contributions_overdue_families` | Gauge | `gruppe` |
-| `gk_members` | Gauge | `gruppe`, `rolle`, `status` |
-| `gk_groups` | Gauge | – |
 
-   Die Gauges liest ein Job alle 60 Sekunden per SQL über alle Mandanten (wie `ReceiptProcessor`, ohne Mandantenfilter). Das Label `gruppe` ist der Gruppenname (Kardinalität begrenzt, höchstens etwa 100 Gruppen). Token-Verbrauch liefert Spring AI selbst (`gen_ai.client.token.usage`).
+   Es gibt keine Momentaufnahmen aus der Datenbank (keine Gauges für offene Belege, Beiträge oder Mitglieder) und kein Label mit Gruppennamen. Token-Verbrauch liefert Spring AI selbst (`gen_ai.client.token.usage`).
 6. Alle Zähler entstehen an den bestehenden Stellen (`LedgerService`, `ExpenseService`, Auth, `ReceiptProcessor`, `ReceiptRecognitionService`), ohne die Geschäftslogik zu ändern.
 
 ## Monitoring-Stack
@@ -72,7 +67,7 @@ Dateien unter `deploy/monitoring/`:
 Als JSON im Repo, automatisch eingespielt, in zwei Ordnern.
 
 - **Technik:** Übersicht (Ampeln, aktive Alarme), Anwendung (Rate, Fehler, p50/95/99 pro Route, JVM, GC, Threads, Tomcat, Hikari), Datenbank (Verbindungen, Sperren, Größe, langsame Abfragen laut Log), Server und Container (CPU, RAM, Swap, Platte, Neustarts), Logs (Fehler, Suche nach Request-ID).
-- **Fachlich:** Belegerkennung (Trichter: erfasst, gelesen, unsicher, manuell; Dauer je Modell; Fallback- und Fehlerquote; Token-Verbrauch; Gesamtdauer), Kasse und Betrieb (offene Belege und Alter, überfällige Beiträge als Anzahl, Aktivität), Sicherheit (Logins, 401/403/429, gesperrte Konten).
+- **Fachlich:** Belegerkennung (Trichter: erfasst, gelesen, unsicher, manuell; Dauer je Modell; Fallback- und Fehlerquote; Token-Verbrauch; Gesamtdauer), Betrieb (Buchungen und Beleg-Statuswechsel als Aktivität), Sicherheit (Logins, 401/403/429, gesperrte Konten).
 
 ## Alarmregeln
 
@@ -83,16 +78,16 @@ Grafana-eigene Alarmierung, als Dateien im Repo. Zustand sichtbar in Grafana und
 | Verfügbarkeit | App nicht erreichbar (2 min), HTTPS-Check fehlgeschlagen (2 min), Zertifikat läuft in weniger als 14 Tagen ab |
 | Anwendung | 5xx-Rate über 2 % (5 min), p95 über 2 s (10 min), Heap über 85 % (10 min), Verbindungspool wartet (5 min) |
 | Server | Platte über 85 %, verfügbarer RAM unter 10 %, Container-Neustart |
-| Belegerkennung | Beleg länger als 15 min in Verarbeitung, Fehlerquote der KI über 50 % (15 min), mehr als 5 Belege aufgegeben pro Stunde |
-| Fachlich | Beleg länger als 7 Tage ungeprüft, mehr als 10 fehlgeschlagene Logins pro Minute |
+| Belegerkennung | Fehlerquote der KI über 50 % (15 min), mehr als 5 Belege aufgegeben pro Stunde |
+| Fachlich | Mehr als 10 fehlgeschlagene Logins pro Minute |
 
 ## Datenschutz
 
-Metriken und Logs enthalten keine Personendaten. Das Label `gruppe` ist ein Organisationsname. **Geldbeträge (Kassenstände, Buchungsbeträge, Ausgaben) werden nie als Metrik oder Log ausgegeben**, auch nicht aggregiert; die Metriken zählen nur Vorgänge. Der Datenschutzhinweis und `docs/betrieb.md` werden um den Satz ergänzt, dass technische und aggregierte Betriebsdaten 14 bzw. 30 Tage aufbewahrt werden.
+Metriken und Logs enthalten keine Personendaten. Es gibt keine Metrik je Wohngruppe und keinen Gruppennamen in Labels. **Geldbeträge (Kassenstände, Buchungsbeträge, Ausgaben) werden nie als Metrik oder Log ausgegeben**, auch nicht aggregiert; die Metriken zählen nur Vorgänge. Der Datenschutzhinweis und `docs/betrieb.md` werden um den Satz ergänzt, dass technische und aggregierte Betriebsdaten 14 bzw. 30 Tage aufbewahrt werden.
 
 ## Tests
 
-- **Backend** (Integrationstests): Login-Zähler und Buchungszähler steigen, Belegerkennungs-Timer tragen Modell und Ergebnis, die Gauges liefern Werte je Gruppe und keine anderen Mandantendaten, `/actuator/prometheus` ist über Port 8080 nicht erreichbar, Logzeilen enthalten keine E-Mail-Adresse und keine Passwörter.
+- **Backend** (Integrationstests): Login-Zähler und Buchungszähler steigen, Belegerkennungs-Timer tragen Modell und Ergebnis, es gibt keine Metrik mit Geldbeträgen oder Gruppennamen, `/actuator/prometheus` ist über Port 8080 nicht erreichbar, Logzeilen enthalten keine E-Mail-Adresse und keine Passwörter.
 - **E2E:** Im Teststack ist der Management-Port erreichbar. Nach einem Beleg-Durchlauf müssen `gk_receipt_ai_duration_seconds_count` und `gk_ledger_bookings_total` gestiegen sein, und `/actuator/prometheus` darf über den öffentlichen Port nicht antworten.
 - **CI:** `docker compose config` für beide Compose-Dateien, `promtool check config` und `promtool check rules`, Gültigkeit der Dashboard-JSONs (`jq`).
 - **Lokal:** `docker compose --profile monitoring up` zeigt Dashboards mit Daten aus einem Beispiel-Durchlauf.
