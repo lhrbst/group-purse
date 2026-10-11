@@ -47,6 +47,11 @@ public class GkMetrics {
         registry.counter("gk.upload.rejected", "reason", reason).increment();
     }
 
+    /** ok oder error beim Erzeugen eines PDF-Berichts. */
+    public void reportPdf(String outcome) {
+        registry.counter("gk.report.pdf", "outcome", outcome).increment();
+    }
+
     /** Dauer eines Modellaufrufs; outcome ist ok, timeout oder error. */
     public void aiCall(String model, String outcome, Duration duration) {
         Timer.builder("gk.receipt.ai.duration").tag("model", model).tag("outcome", outcome).register(registry).record(duration);

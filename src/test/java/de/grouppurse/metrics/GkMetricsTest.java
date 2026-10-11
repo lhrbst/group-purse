@@ -24,6 +24,15 @@ class GkMetricsTest {
     }
 
     @Test
+    void pdfReportsAreCountedByOutcome() {
+        m.reportPdf("ok");
+        m.reportPdf("ok");
+        m.reportPdf("error");
+        assertThat(registry.get("gk.report.pdf").tag("outcome", "ok").counter().count()).isEqualTo(2);
+        assertThat(registry.get("gk.report.pdf").tag("outcome", "error").counter().count()).isEqualTo(1);
+    }
+
+    @Test
     void timersRecordDurationPerModelAndOutcome() {
         m.aiCall("klein", "ok", Duration.ofSeconds(12));
         m.receiptEndToEnd("EINGEREICHT", Duration.ofSeconds(40));
