@@ -51,10 +51,10 @@ export default defineConfig({
     })]),
   ],
   server: {
-    proxy: { '/api': backend, '/actuator': backend },
+    proxy: { '/api': backend },
   },
   preview: {
-    proxy: { '/api': backend, '/actuator': backend },
+    proxy: { '/api': backend },
   },
   test: {
     environment: 'jsdom',

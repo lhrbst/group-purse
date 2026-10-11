@@ -3,6 +3,7 @@ const env = process.env;
 export const PORTS = {
   db: Number(env.E2E_DB_PORT ?? 55432),
   backend: Number(env.E2E_BACKEND_PORT ?? 18080),
+  management: Number(env.E2E_MANAGEMENT_PORT ?? 18081),
   llm: Number(env.E2E_LLM_PORT ?? 19090),
   web: Number(env.E2E_WEB_PORT ?? 14173),
 };
@@ -10,6 +11,7 @@ export const PORTS = {
 export const URLS = {
   web: `http://localhost:${PORTS.web}`,
   backend: `http://localhost:${PORTS.backend}`,
+  management: `http://localhost:${PORTS.management}`,
   llm: `http://localhost:${PORTS.llm}`,
 };
 

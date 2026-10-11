@@ -1,5 +1,14 @@
 {$DOMAIN} {
-	reverse_proxy app:8080
+	# Nur der Health-Check ist öffentlich (für den Uptime-Dienst); Metriken liegen auf dem internen Management-Port
+	handle /actuator/health* {
+		reverse_proxy app:8081
+	}
+	handle /actuator/* {
+		respond 404
+	}
+	handle {
+		reverse_proxy app:8080
+	}
 	encode gzip
 	request_body {
 		max_size 20MB

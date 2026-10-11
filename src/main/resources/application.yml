@@ -35,14 +35,30 @@ server:
   forward-headers-strategy: framework
 
 management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info,prometheus
   endpoint:
     health:
       probes:
         enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        gk.receipt.ai.duration: true
+        gk.receipt.end_to_end: true
+      minimum-expected-value:
+        gk.receipt.ai.duration: 1s
+        gk.receipt.end_to_end: 5s
+      maximum-expected-value:
+        gk.receipt.ai.duration: 300s
+        gk.receipt.end_to_end: 3600s
+    tags:
+      application: gruppenkasse
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:5173}

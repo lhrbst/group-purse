@@ -114,6 +114,7 @@ export async function startStack(): Promise<() => Promise<void>> {
       env: {
         ...process.env,
         SERVER_PORT: String(PORTS.backend),
+        MANAGEMENT_PORT: String(PORTS.management),
         DB_URL: `jdbc:postgresql://localhost:${PORTS.db}/grouppurse`,
         DB_USER: 'grouppurse',
         DB_PASSWORD: 'e2e',
@@ -134,7 +135,7 @@ export async function startStack(): Promise<() => Promise<void>> {
     });
     children.push(backend);
     await waitFor('Backend', async () => {
-      const r = await fetch(`${URLS.backend}/actuator/health`);
+      const r = await fetch(`${URLS.management}/actuator/health`);
       return r.ok && (await r.text()).includes('"UP"');
     }, 150_000, backendLog, backend);
 

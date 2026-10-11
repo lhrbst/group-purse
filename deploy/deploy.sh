@@ -20,7 +20,7 @@ write_env() {
 }
 
 healthy() {
-  docker compose exec -T app wget -qO- http://localhost:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'
+  docker compose exec -T app wget -qO- http://localhost:8081/actuator/health 2>/dev/null | grep -q '"status":"UP"'
 }
 
 start() {

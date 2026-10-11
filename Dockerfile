@@ -28,5 +28,5 @@ ENV STORAGE_DIR=/data/receipts \
     JAVA_TOOL_OPTIONS="-Xmx512m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -Dfile.encoding=UTF-8"
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
-    CMD wget -qO- http://localhost:8080/actuator/health >/dev/null || exit 1
+    CMD wget -qO- http://localhost:8081/actuator/health >/dev/null || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
