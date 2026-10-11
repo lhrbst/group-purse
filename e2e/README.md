@@ -62,6 +62,7 @@ Logs des Stacks liegen nach dem Lauf in `e2e/.run/` (`backend.log`, `web.log`); 
 | `reports.spec.ts` | Diagramme, Haupt-/Unterkategorie, Filter |
 | `isolation.spec.ts` | Wohngruppen sehen nichts voneinander, eine Person in mehreren Gruppen |
 | `pwa.spec.ts` | Manifest, Icons, Service Worker, Offline-Start, keine zwischengespeicherten API-Antworten |
+| `observability.spec.ts` | Metriken nur auf dem Management-Port, Geschäftszähler nach Beleg-Durchlauf, keine Personen/Beträge in Metriken, Request-ID |
 | `smoke.spec.ts` | Jede Seite jeder Rolle lädt ohne Skriptfehler |
 | `mobile.mobile.spec.ts` | Burger-Menü, Erfassen am Handy, kein seitliches Scrollen, Prüfen am Handy |
 
