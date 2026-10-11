@@ -5,6 +5,7 @@ import de.grouppurse.auth.AuthDtos.LoginRequest;
 import de.grouppurse.auth.AuthDtos.MeDto;
 import de.grouppurse.auth.AuthDtos.PasswordResetConfirm;
 import de.grouppurse.domain.Person;
+import de.grouppurse.metrics.GkMetrics;
 import de.grouppurse.repo.PersonRepository;
 import de.grouppurse.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,38 +35,51 @@ public class AuthController {
     private final AuthService auth;
     private final PasswordResetService resets;
     private final RegistrationService registration;
+    private final GkMetrics metrics;
 
     public AuthController(PersonRepository people, PasswordEncoder encoder, LoginRateLimiter limiter,
-                          AuthService auth, PasswordResetService resets, RegistrationService registration) {
+                          AuthService auth, PasswordResetService resets, RegistrationService registration,
+                          GkMetrics metrics) {
         this.people = people;
         this.encoder = encoder;
         this.limiter = limiter;
         this.auth = auth;
         this.resets = resets;
         this.registration = registration;
+        this.metrics = metrics;
     }
 
     @PostMapping("/auth/login")
     public MeDto login(@Valid @RequestBody LoginRequest r, HttpServletRequest req, HttpServletResponse res) {
         String email = AuthService.normalizeEmail(r.email());
         if (limiter.isBlocked(email)) {
+            metrics.login("locked");
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Zu viele Fehlversuche, bitte später erneut versuchen");
         }
         Person p = people.findByEmail(email).orElse(null);
         boolean passwordOk = encoder.matches(r.password(), p != null ? p.passwortHash : DUMMY_HASH);
         if (p == null || !passwordOk) {
             limiter.recordFailure(email);
+            metrics.login("failure");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "E-Mail oder Passwort falsch");
         }
         limiter.reset(email);
         auth.startSession(p, req, res);
+        metrics.login("success");
         return auth.me();
     }
 
     @PostMapping("/auth/register")
     @ResponseStatus(HttpStatus.CREATED)
     public MeDto register(@Valid @RequestBody RegisterRequest r, HttpServletRequest req, HttpServletResponse res) {
-        Person p = registration.register(r);
+        Person p;
+        try {
+            p = registration.register(r);
+        } catch (RuntimeException e) {
+            metrics.registration("rejected");
+            throw e;
+        }
+        metrics.registration("success");
         auth.startSession(p, req, res);
         return auth.me();
     }

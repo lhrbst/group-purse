@@ -2,8 +2,10 @@ package de.grouppurse.receipt;
 
 import de.grouppurse.category.CategoryDto;
 import de.grouppurse.category.CategoryService;
+import de.grouppurse.metrics.GkMetrics;
 import de.grouppurse.receipt.ReceiptModelClient.RawPosition;
 import de.grouppurse.receipt.ReceiptModelClient.RawReceipt;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +45,8 @@ class ReceiptRecognitionServiceTest {
     }
 
     ReceiptRecognitionService service(boolean enabled) {
-        return new ReceiptRecognitionService(client, new ReceiptAiProperties(enabled, "klein", "gross", 30, 1), categories);
+        return new ReceiptRecognitionService(client, new ReceiptAiProperties(enabled, "klein", "gross", 30, 1), categories,
+                new GkMetrics(new SimpleMeterRegistry()));
     }
 
     RawReceipt good() {

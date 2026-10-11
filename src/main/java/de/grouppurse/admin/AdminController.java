@@ -9,6 +9,7 @@ import de.grouppurse.admin.AdminDtos.WohngruppeDto;
 import de.grouppurse.auth.AuthDtos.MeDto;
 import de.grouppurse.auth.AuthService;
 import de.grouppurse.domain.Person;
+import de.grouppurse.metrics.GkMetrics;
 import de.grouppurse.security.Access;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,12 +33,15 @@ public class AdminController {
     private final WohngruppeService gruppen;
     private final InvitationService invitations;
     private final AuthService auth;
+    private final GkMetrics metrics;
 
-    public AdminController(Access access, WohngruppeService gruppen, InvitationService invitations, AuthService auth) {
+    public AdminController(Access access, WohngruppeService gruppen, InvitationService invitations, AuthService auth,
+                           GkMetrics metrics) {
         this.access = access;
         this.gruppen = gruppen;
         this.invitations = invitations;
         this.auth = auth;
+        this.metrics = metrics;
     }
 
     @PostMapping("/admin/wohngruppen")
@@ -67,7 +71,14 @@ public class AdminController {
     @PostMapping("/einladungen/{token}/einloesen")
     public MeDto redeem(@PathVariable String token, @RequestBody RedeemRequest r,
                         HttpServletRequest req, HttpServletResponse res) {
-        Person p = invitations.redeem(token, r);
+        Person p;
+        try {
+            p = invitations.redeem(token, r);
+        } catch (RuntimeException e) {
+            metrics.invitation("rejected");
+            throw e;
+        }
+        metrics.invitation("success");
         auth.startSession(p, req, res);
         return auth.me();
     }

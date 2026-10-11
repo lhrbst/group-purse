@@ -13,6 +13,7 @@ import de.grouppurse.expense.ExpenseDtos.PositionInput;
 import de.grouppurse.ledger.BuchungDto;
 import de.grouppurse.ledger.BuchungMapper;
 import de.grouppurse.ledger.LedgerService;
+import de.grouppurse.metrics.GkMetrics;
 import de.grouppurse.receipt.ReceiptAiProperties;
 import de.grouppurse.receipt.ReceiptSuggestion;
 import de.grouppurse.repo.BuchungPositionRepository;
@@ -59,10 +60,11 @@ public class ExpenseService {
     private final CurrentUser user;
     private final BuchungMapper mapper;
     private final ReceiptAiProperties ai;
+    private final GkMetrics metrics;
 
     public ExpenseService(BuchungRepository buchungen, BuchungPositionRepository positionen, LedgerService ledger,
                           CategoryService categories, ReceiptStorage storage, AuditService audit, CurrentUser user,
-                          BuchungMapper mapper, ReceiptAiProperties ai) {
+                          BuchungMapper mapper, ReceiptAiProperties ai, GkMetrics metrics) {
         this.buchungen = buchungen;
         this.positionen = positionen;
         this.ledger = ledger;
@@ -72,6 +74,20 @@ public class ExpenseService {
         this.user = user;
         this.mapper = mapper;
         this.ai = ai;
+        this.metrics = metrics;
+    }
+
+    /** Setzt den Status und zählt den Übergang (NEU bei der Erstanlage). */
+    private void setStatus(Buchung b, BuchungStatus to) {
+        metrics.expenseTransition(b.status == null ? "NEU" : b.status.name(), to.name());
+        b.status = to;
+    }
+
+    /** Zeit von der Aufnahme bis zum Ergebnis der Belegerkennung (eingereicht oder zur manuellen Erfassung). */
+    private void recordEndToEnd(Buchung b, BuchungStatus outcome) {
+        if (b.erfasstAm != null) {
+            metrics.receiptEndToEnd(outcome.name(), Duration.between(b.erfasstAm, Instant.now()));
+        }
     }
 
     private BuchungStatus statusAfterUpload() {
@@ -102,7 +118,7 @@ public class ExpenseService {
         b.art = Art.AUSGABE;
         b.betrag = new BigDecimal("0.00");
         b.datum = LocalDate.now();
-        b.status = statusAfterUpload();
+        setStatus(b, statusAfterUpload());
         b.belegFotos = new ArrayList<>(files.stream().map(storage::store).toList());
         return ledger.save(b);
     }
@@ -113,7 +129,7 @@ public class ExpenseService {
         Buchung b = new Buchung();
         b.konto = Konto.BARKASSE;
         b.art = Art.AUSGABE;
-        b.status = BuchungStatus.EINGEREICHT;
+        setStatus(b, BuchungStatus.EINGEREICHT);
         List<PositionInput> rows = apply(b, in, photos, true);
         Buchung saved = ledger.save(b);
         replacePositions(saved.id, rows);
@@ -126,7 +142,7 @@ public class ExpenseService {
         Buchung b = new Buchung();
         b.konto = Konto.VEREINSKONTO;
         b.art = Art.KONTOAUSGABE;
-        b.status = BuchungStatus.GEBUCHT;
+        setStatus(b, BuchungStatus.GEBUCHT);
         List<PositionInput> rows = apply(b, in, photos, true);
         Buchung saved = ledger.save(b);
         replacePositions(saved.id, rows);
@@ -160,7 +176,7 @@ public class ExpenseService {
         b.zweck = null;
         positionen.deleteByBuchungId(b.id);
         resetProcessing(b);
-        b.status = statusAfterUpload();
+        setStatus(b, statusAfterUpload());
         audit.log("Beleg neu fotografiert", "Buchung", b.id, before, mapper.toDto(b));
         return b;
     }
@@ -184,7 +200,7 @@ public class ExpenseService {
         BuchungDto before = mapper.toDto(b);
         List<PositionInput> rows = apply(b, in, null, false);
         replacePositions(b.id, rows);
-        b.status = BuchungStatus.EINGEREICHT;
+        setStatus(b, BuchungStatus.EINGEREICHT);
         b.verarbeitungFehler = null;
         audit.log("Beleg bearbeitet", "Buchung", b.id, before, mapper.toDto(b));
         return b;
@@ -194,7 +210,7 @@ public class ExpenseService {
     public Buchung approve(UUID id) {
         Buchung b = find(id);
         requireSubmitted(b);
-        b.status = BuchungStatus.GEPRUEFT;
+        setStatus(b, BuchungStatus.GEPRUEFT);
         b.geprueftVon = user.personId();
         b.geprueftAm = Instant.now();
         audit.log("Ausgabe geprüft", "Buchung", b.id, BuchungStatus.EINGEREICHT, BuchungStatus.GEPRUEFT);
@@ -211,7 +227,7 @@ public class ExpenseService {
         if (b.art != Art.AUSGABE || !EDITABLE.contains(b.status)) {
             throw new IllegalStateException("Nur offene Belege können abgelehnt werden");
         }
-        b.status = BuchungStatus.ABGELEHNT;
+        setStatus(b, BuchungStatus.ABGELEHNT);
         b.ablehnungsKommentar = kommentar.trim();
         audit.log("Ausgabe abgelehnt", "Buchung", b.id, null, kommentar.trim());
         return b;
@@ -235,8 +251,9 @@ public class ExpenseService {
         ExpenseInput in = new ExpenseInput(s.datum(), wanted, s.haendler(), null, null, null);
         List<PositionInput> rows = apply(b, in, null, false);
         replacePositions(b.id, rows);
-        b.status = BuchungStatus.EINGEREICHT;
+        setStatus(b, BuchungStatus.EINGEREICHT);
         b.verarbeitungFehler = null;
+        recordEndToEnd(b, BuchungStatus.EINGEREICHT);
         audit.log("Beleg von der KI gelesen", "Buchung", b.id, null, mapper.toDto(b));
     }
 
@@ -251,7 +268,9 @@ public class ExpenseService {
         b.verarbeitungFehler = text;
         b.verarbeitungGestartetAm = null;
         if (b.verarbeitungVersuche >= MAX_ATTEMPTS) {
-            b.status = BuchungStatus.MANUELL;
+            setStatus(b, BuchungStatus.MANUELL);
+            metrics.aiGaveUp("attempts");
+            recordEndToEnd(b, BuchungStatus.MANUELL);
             audit.log("Belegerkennung aufgegeben", "Buchung", b.id, null, text);
         } else {
             b.verarbeitungNaechsterVersuch = Instant.now().plus(Duration.ofSeconds((long) Math.max(1, ai.retryBackoffSeconds()) * Math.max(1, b.verarbeitungVersuche)));
@@ -268,7 +287,9 @@ public class ExpenseService {
         String text = message.length() > 500 ? message.substring(0, 500) : message;
         b.verarbeitungFehler = text;
         b.verarbeitungGestartetAm = null;
-        b.status = BuchungStatus.MANUELL;
+        setStatus(b, BuchungStatus.MANUELL);
+        metrics.aiGaveUp("uncertain");
+        recordEndToEnd(b, BuchungStatus.MANUELL);
         audit.log("Beleg zur manuellen Erfassung freigegeben", "Buchung", b.id, null, text);
     }
 

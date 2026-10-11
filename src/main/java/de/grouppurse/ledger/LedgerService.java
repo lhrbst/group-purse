@@ -2,6 +2,7 @@ package de.grouppurse.ledger;
 
 import de.grouppurse.audit.AuditService;
 import de.grouppurse.domain.Art;
+import de.grouppurse.metrics.GkMetrics;
 import de.grouppurse.domain.Buchung;
 import de.grouppurse.domain.BuchungStatus;
 import de.grouppurse.domain.Konto;
@@ -32,10 +33,11 @@ public class LedgerService {
     private final BalanceService balances;
     private final AuditService audit;
     private final CurrentUser user;
+    private final GkMetrics metrics;
 
     public LedgerService(BuchungRepository buchungen, BeitragRepository beitraege, WohngruppeRepository gruppen,
                          BookingNumberService numbers, BalanceService balances, AuditService audit,
-                         CurrentUser user) {
+                         CurrentUser user, GkMetrics metrics) {
         this.buchungen = buchungen;
         this.beitraege = beitraege;
         this.gruppen = gruppen;
@@ -43,6 +45,7 @@ public class LedgerService {
         this.balances = balances;
         this.audit = audit;
         this.user = user;
+        this.metrics = metrics;
     }
 
     /** Betrag auf höchstens zwei Nachkommastellen prüfen. */
@@ -89,6 +92,7 @@ public class LedgerService {
         b.erfasstAm = Instant.now();
         b = buchungen.save(b);
         audit.log("Buchung angelegt", "Buchung", b.id, null, b);
+        metrics.booking(b.art.name());
         return b;
     }
 
@@ -101,6 +105,7 @@ public class LedgerService {
         }
         Buchung saved = buchungen.save(b);
         audit.log("Buchung angelegt", "Buchung", saved.id, null, saved);
+        metrics.booking(saved.art.name());
         return saved;
     }
 

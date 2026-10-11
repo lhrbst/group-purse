@@ -1,5 +1,6 @@
 package de.grouppurse.receipt;
 
+import de.grouppurse.metrics.GkMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -8,12 +9,14 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeTypeUtils;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Component
 public class SpringAiReceiptClient implements ReceiptModelClient {
@@ -22,10 +25,12 @@ public class SpringAiReceiptClient implements ReceiptModelClient {
 
     private final ChatClient chat;
     private final ReceiptAiProperties props;
+    private final GkMetrics metrics;
 
-    public SpringAiReceiptClient(ChatClient.Builder builder, ReceiptAiProperties props) {
+    public SpringAiReceiptClient(ChatClient.Builder builder, ReceiptAiProperties props, GkMetrics metrics) {
         this.chat = builder.build();
         this.props = props;
+        this.metrics = metrics;
     }
 
     @Override
@@ -58,14 +63,24 @@ public class SpringAiReceiptClient implements ReceiptModelClient {
                 })
                 .call()
                 .entity(RawReceipt.class));
+        long start = System.nanoTime();
         try {
-            return Optional.ofNullable(call.get(props.timeoutSeconds() > 0 ? props.timeoutSeconds() : 180, TimeUnit.SECONDS));
+            RawReceipt result = call.get(props.timeoutSeconds() > 0 ? props.timeoutSeconds() : 180, TimeUnit.SECONDS);
+            metrics.aiCall(model, "ok", Duration.ofNanos(System.nanoTime() - start));
+            return Optional.ofNullable(result);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             call.cancel(true);
+            metrics.aiCall(model, "error", Duration.ofNanos(System.nanoTime() - start));
+            return Optional.empty();
+        } catch (TimeoutException e) {
+            call.cancel(true);
+            metrics.aiCall(model, "timeout", Duration.ofNanos(System.nanoTime() - start));
+            log.warn("Belegerkennung mit {} hat das Zeitlimit überschritten", model);
             return Optional.empty();
         } catch (Exception e) {
             call.cancel(true);
+            metrics.aiCall(model, "error", Duration.ofNanos(System.nanoTime() - start));
             log.warn("Belegerkennung mit {} fehlgeschlagen: {}", model, e.toString());
             return Optional.empty();
         }

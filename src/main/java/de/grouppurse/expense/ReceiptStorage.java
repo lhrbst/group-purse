@@ -1,5 +1,6 @@
 package de.grouppurse.expense;
 
+import de.grouppurse.metrics.GkMetrics;
 import de.grouppurse.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -22,19 +23,23 @@ public class ReceiptStorage {
     private static final Pattern SAFE_NAME = Pattern.compile("[0-9a-f-]{36}\\.(jpg|png|webp)");
 
     private final Path root;
+    private final GkMetrics metrics;
 
-    public ReceiptStorage(@Value("${app.storage.dir}") String dir) {
+    public ReceiptStorage(@Value("${app.storage.dir}") String dir, GkMetrics metrics) {
         this.root = Path.of(dir).toAbsolutePath().normalize();
+        this.metrics = metrics;
     }
 
     public String store(MultipartFile file) {
         try {
             if (file.getSize() > MAX_BYTES) {
+                metrics.uploadRejected("too_large");
                 throw new IllegalArgumentException("Foto ist größer als 5 MB");
             }
             byte[] bytes = file.getBytes();
             String ext = detectExtension(bytes);
             if (ext == null) {
+                metrics.uploadRejected("bad_type");
                 throw new IllegalArgumentException("Nur Fotos (JPEG, PNG, WebP) sind erlaubt");
             }
             UUID tenant = TenantContext.get().orElseThrow(() -> new IllegalStateException("Keine Wohngruppe aktiv"));

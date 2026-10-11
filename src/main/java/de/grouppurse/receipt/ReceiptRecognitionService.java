@@ -2,6 +2,7 @@ package de.grouppurse.receipt;
 
 import de.grouppurse.category.CategoryDto;
 import de.grouppurse.category.CategoryService;
+import de.grouppurse.metrics.GkMetrics;
 import de.grouppurse.receipt.ReceiptModelClient.RawReceipt;
 import de.grouppurse.receipt.ReceiptSuggestion.PositionSuggestion;
 import org.slf4j.Logger;
@@ -24,11 +25,14 @@ public class ReceiptRecognitionService {
     private final ReceiptModelClient client;
     private final ReceiptAiProperties props;
     private final CategoryService categories;
+    private final GkMetrics metrics;
 
-    public ReceiptRecognitionService(ReceiptModelClient client, ReceiptAiProperties props, CategoryService categories) {
+    public ReceiptRecognitionService(ReceiptModelClient client, ReceiptAiProperties props, CategoryService categories,
+                                     GkMetrics metrics) {
         this.client = client;
         this.props = props;
         this.categories = categories;
+        this.metrics = metrics;
     }
 
     public boolean enabled() {
@@ -51,11 +55,12 @@ public class ReceiptRecognitionService {
         LocalDate today = LocalDate.now();
 
         Attempt first = attempt(images, names, leaves, props.model());
-        if (first.usable(today)) {
+        if (judge(props.model(), first, today)) {
             return first.suggestion();
         }
+        metrics.aiFallback();
         Attempt second = attempt(images, names, leaves, props.fallbackModel());
-        if (second.usable(today)) {
+        if (judge(props.fallbackModel(), second, today)) {
             return second.suggestion();
         }
         String reason = second.uncertainty() != null ? second.uncertainty() : first.uncertainty();
@@ -65,11 +70,24 @@ public class ReceiptRecognitionService {
         return Optional.empty();
     }
 
+    /** Zählt das Ergebnis eines Modellaufrufs (usable, uncertain, implausible, failed) und sagt, ob es verwendbar ist. */
+    private boolean judge(String model, Attempt a, LocalDate today) {
+        String result;
+        if (a.uncertainty() != null) {
+            result = "uncertain";
+        } else if (a.suggestion().isEmpty()) {
+            result = "failed";
+        } else if (ReceiptPlausibility.isPlausible(a.suggestion().get(), today)) {
+            result = "usable";
+        } else {
+            result = "implausible";
+        }
+        metrics.aiResult(model, result);
+        return "usable".equals(result);
+    }
+
     /** Ergebnis eines Modellaufrufs: Vorschlag (kann fehlen) und ggf. die Unsicherheit, die das Modell gemeldet hat. */
     private record Attempt(Optional<ReceiptSuggestion> suggestion, String uncertainty) {
-        boolean usable(LocalDate today) {
-            return uncertainty == null && suggestion.isPresent() && ReceiptPlausibility.isPlausible(suggestion.get(), today);
-        }
     }
 
     private Attempt attempt(List<ReceiptImage> images, List<String> names, List<CategoryDto> leaves, String model) {
