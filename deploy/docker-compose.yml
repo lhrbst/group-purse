@@ -47,7 +47,7 @@ services:
     mem_limit: 700m
 
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: grouppurse
