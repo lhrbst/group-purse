@@ -12,7 +12,7 @@ Der Umsetzungsplan liegt in `docs/superpowers/plans/`.
 | Rolle | Kann |
 | --- | --- |
 | **Admin** (global) | alles in allen Wohngruppen; legt als Einziger Wohngruppen an und lädt Kassenverwalter ein. Wird einmalig per SQL angelegt. |
-| **Kassenverwalter** (je Wohngruppe) | Beiträge und Kassenbuch führen, Ausgaben prüfen, Teammitglieder freischalten, Auswertungen |
+| **Kassenverwalter** (je Wohngruppe) | Beiträge und Kassenbuch führen, Ausgaben prüfen, Teammitglieder freischalten, Auswertungen, Monatsübersicht der Ausgaben mit PDF-Bericht |
 | **Teammitglied** (je Wohngruppe; Pflege- und Assistenzkräfte oder wer sonst einkauft) | Belege erfassen, eigene Ausgaben sehen, Kassenstand sehen |
 
 Eltern haben keinen Zugang.
