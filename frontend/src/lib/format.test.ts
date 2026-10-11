@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { formatDate, formatEuro, formatMonth, parseAmount, shiftMonth } from './format';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { formatDate, formatEuro, formatMonth, formatMonthLong, parseAmount, recentMonths, shiftMonth } from './format';
 
 describe('format', () => {
   it('formats euro the German way', () => {
@@ -27,5 +27,22 @@ describe('format', () => {
     expect(parseAmount(' 7 ')).toBe(7);
     expect(parseAmount('abc')).toBeNaN();
     expect(parseAmount('')).toBeNaN();
+  });
+});
+
+describe('formatMonthLong', () => {
+  it('writes the month in full German', () => {
+    expect(formatMonthLong('2026-03')).toBe('März 2026');
+    expect(formatMonthLong('2026-10')).toBe('Oktober 2026');
+  });
+});
+
+describe('recentMonths', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('lists the current month first and goes back across year ends', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 1, 15));
+    expect(recentMonths(4)).toEqual(['2026-02', '2026-01', '2025-12', '2025-11']);
   });
 });

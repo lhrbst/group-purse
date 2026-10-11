@@ -6,6 +6,7 @@ import { useCategoryList } from '../../api/generated/category-controller/categor
 import { useMemberList } from '../../api/generated/member-controller/member-controller';
 import { useReportBalanceHistory, useReportByCategory, useReportIncomeVsExpense } from '../../api/generated/report-controller/report-controller';
 import { LoadError, Loading } from '../../components/Loading';
+import { MonthlyOverview } from '../../components/MonthlyOverview';
 import { categoryLabel } from '../../lib/categories';
 import { incomeExpenseData, pivotByMonth } from '../../lib/chartData';
 import { currentMonth, formatDate, formatEuro, shiftMonth, todayIso } from '../../lib/format';
@@ -36,6 +37,7 @@ export function ReportsPage() {
   return (
     <Stack>
       <Title order={2}>Auswertungen</Title>
+      <MonthlyOverview />
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         <DateInput label="Von" valueFormat="DD.MM.YYYY" value={von} onChange={setVon} />
         <DateInput label="Bis" valueFormat="DD.MM.YYYY" value={bis} onChange={setBis} />

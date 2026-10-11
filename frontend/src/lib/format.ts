@@ -24,6 +24,14 @@ export function formatMonth(ym: string): string {
   return `${MONTHS[Number(m) - 1]} ${y}`;
 }
 
+const MONTHS_LONG = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+/** 2026-03 -> März 2026 */
+export function formatMonthLong(ym: string): string {
+  const [y, m] = ym.split('-');
+  return `${MONTHS_LONG[Number(m) - 1]} ${y}`;
+}
+
 export function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -44,4 +52,10 @@ export function parseAmount(input: string | number): number {
   if (typeof input === 'number') return input;
   const cleaned = input.trim().replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
   return cleaned === '' ? NaN : Number(cleaned);
+}
+
+/** Die letzten count Monate, der laufende zuerst. */
+export function recentMonths(count: number): string[] {
+  const now = currentMonth();
+  return Array.from({ length: count }, (_, i) => shiftMonth(now, -i));
 }

@@ -25,9 +25,11 @@ import type {
   CategoryMonthSum,
   IncomeExpense,
   ManagerDashboard,
+  MonthlyReport,
   ReportBalanceHistoryParams,
   ReportByCategoryParams,
-  ReportIncomeVsExpenseParams
+  ReportIncomeVsExpenseParams,
+  ReportMonthlyReportParams
 } from '../../model';
 
 import { customFetch } from '../../mutator';
@@ -51,6 +53,119 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export type reportMonthlyReportResponse200 = {
+  data: MonthlyReport
+  status: 200
+}
+
+export type reportMonthlyReportResponseSuccess = (reportMonthlyReportResponse200) & {
+  headers: Headers;
+};
+;
+
+export type reportMonthlyReportResponse = (reportMonthlyReportResponseSuccess)
+
+export const getReportMonthlyReportUrl = (params: ReportMonthlyReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/monthly?${stringifiedParams}` : `/api/reports/monthly`
+}
+
+export const reportMonthlyReport = async (params: ReportMonthlyReportParams, options?: Parameters<typeof customFetch>[1]): Promise<reportMonthlyReportResponse> => {
+
+  return customFetch<reportMonthlyReportResponse>(getReportMonthlyReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReportMonthlyReportQueryKey = (params?: ReportMonthlyReportParams,) => {
+    return [
+    `/api/reports/monthly`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getReportMonthlyReportQueryOptions = <TData = Awaited<ReturnType<typeof reportMonthlyReport>>, TError = unknown>(params: ReportMonthlyReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reportMonthlyReport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReportMonthlyReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof reportMonthlyReport>>> = ({ signal }) => reportMonthlyReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof reportMonthlyReport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReportMonthlyReportQueryResult = NonNullable<Awaited<ReturnType<typeof reportMonthlyReport>>>
+export type ReportMonthlyReportQueryError = unknown
+
+
+export function useReportMonthlyReport<TData = Awaited<ReturnType<typeof reportMonthlyReport>>, TError = unknown>(
+ params: ReportMonthlyReportParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof reportMonthlyReport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reportMonthlyReport>>,
+          TError,
+          Awaited<ReturnType<typeof reportMonthlyReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReportMonthlyReport<TData = Awaited<ReturnType<typeof reportMonthlyReport>>, TError = unknown>(
+ params: ReportMonthlyReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reportMonthlyReport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reportMonthlyReport>>,
+          TError,
+          Awaited<ReturnType<typeof reportMonthlyReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReportMonthlyReport<TData = Awaited<ReturnType<typeof reportMonthlyReport>>, TError = unknown>(
+ params: ReportMonthlyReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reportMonthlyReport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReportMonthlyReport<TData = Awaited<ReturnType<typeof reportMonthlyReport>>, TError = unknown>(
+ params: ReportMonthlyReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reportMonthlyReport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReportMonthlyReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
 
 export type reportIncomeVsExpenseResponse200 = {
   data: IncomeExpense[]
