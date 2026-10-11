@@ -258,6 +258,20 @@ public class ExpenseService {
         }
     }
 
+    /** Die KI ist sich bei dem Beleg nicht sicher: sofort zur manuellen Erfassung durch den Kassenverwalter, ohne weitere Versuche. */
+    @Transactional
+    public void giveUpRecognition(UUID id, String message) {
+        Buchung b = find(id);
+        if (b.status != BuchungStatus.VERARBEITUNG) {
+            return;
+        }
+        String text = message.length() > 500 ? message.substring(0, 500) : message;
+        b.verarbeitungFehler = text;
+        b.verarbeitungGestartetAm = null;
+        b.status = BuchungStatus.MANUELL;
+        audit.log("Beleg zur manuellen Erfassung freigegeben", "Buchung", b.id, null, text);
+    }
+
     // ---------- Lesen
 
     @Transactional(readOnly = true)

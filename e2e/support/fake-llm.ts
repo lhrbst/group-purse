@@ -5,7 +5,7 @@ import http from 'node:http';
  * (Spring AI, Hintergrundjob, Wiederholungen, Timeout) ohne echtes Modell und deterministisch.
  * Gesteuert wird sie über POST /__control; die eingegangenen Anfragen liefert GET /__calls.
  */
-export type Mode = 'success' | 'fail' | 'invalid' | 'mismatch' | 'slow';
+export type Mode = 'success' | 'fail' | 'invalid' | 'mismatch' | 'slow' | 'unsure';
 
 export interface LlmCall {
   model: string;
@@ -17,6 +17,10 @@ export interface LlmCall {
 }
 
 interface Receipt {
+  /** Mehrere Bons auf einem Foto: Anzahl, Endsumme und Positionen gelten für alle zusammen */
+  belegAnzahl?: number;
+  sicher?: boolean;
+  unsicherheit?: string;
   haendler: string;
   datum: string;
   gesamtbetrag: number;
@@ -131,6 +135,8 @@ function respond(res: http.ServerResponse) {
   switch (state.mode) {
     case 'fail':
       return json(res, 500, { error: { message: 'Fake-KI: absichtlicher Fehler', type: 'server_error' } });
+    case 'unsure':
+      return json(res, 200, completion(JSON.stringify({ belegAnzahl: 3, sicher: false, unsicherheit: 'Der Endbetrag des mittleren Bons ist abgeschnitten.' })));
     case 'invalid':
       return json(res, 200, completion('Das ist leider kein gültiges JSON.'));
     case 'mismatch': {

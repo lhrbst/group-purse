@@ -140,6 +140,23 @@ class ReceiptProcessingTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void uncertainReceiptGoesStraightToManualEntryWithTheReasonAndWithoutRetries() throws Exception {
+        String id = capture(pk);
+        when(client.extract(any(), any(), any()))
+                .thenReturn(Optional.of(new RawReceipt(3, null, null, null, null, Boolean.FALSE, "Endbetrag abgeschnitten")));
+
+        assertThat(processor.runOnce()).isEqualTo(1);
+
+        mvc.perform(get("/api/expenses/" + id).session(kv))
+                .andExpect(jsonPath("$.status").value("MANUELL"))
+                .andExpect(jsonPath("$.verarbeitungFehler").value(org.hamcrest.Matchers.containsString("Endbetrag abgeschnitten")))
+                .andExpect(jsonPath("$.betrag").value(0.0));
+        expectCash(100);
+        makeDue(id);
+        assertThat(processor.runOnce()).isZero();
+    }
+
+    @Test
     void anImplausibleResultIsNotWrittenToTheReceipt() throws Exception {
         String id = capture(pk);
         // Summe der Positionen (10) passt nicht zur Endsumme (23,40)

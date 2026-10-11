@@ -1,0 +1,44 @@
+# Lokales Testen des fertigen Images (Backend + Frontend in einem Container, plus Postgres).
+#   docker compose up --build        -> http://localhost:8080
+#   docker compose down -v           -> alles inkl. Daten löschen
+# Optional: KI-Belegerkennung über eine .env neben dieser Datei (wird nicht eingecheckt):
+#   OPENAI_API_KEY=sk-...
+#   RECEIPT_AI_ENABLED=true
+name: gruppenkasse-local
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/grouppurse
+      DB_USER: grouppurse
+      DB_PASSWORD: grouppurse
+      APP_BASE_URL: http://localhost:8080
+      COOKIE_SECURE: "false"      # lokal ohne HTTPS
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-disabled}
+      RECEIPT_AI_ENABLED: ${RECEIPT_AI_ENABLED:-false}
+    volumes:
+      - receipts:/data/receipts
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: grouppurse
+      POSTGRES_USER: grouppurse
+      POSTGRES_PASSWORD: grouppurse
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grouppurse -d grouppurse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  receipts:
+  pgdata:

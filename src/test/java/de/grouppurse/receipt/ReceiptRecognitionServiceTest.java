@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -100,6 +101,53 @@ class ReceiptRecognitionServiceTest {
         assertThat(s).isPresent();
         assertThat(s.get().positionen()).hasSize(3);
         verify(client, times(2)).extract(any(), any(), any());
+    }
+
+    RawReceipt unsure(String why) {
+        return new RawReceipt(3, null, null, null, null, Boolean.FALSE, why);
+    }
+
+    @Test
+    void uncertainSmallModelIsCheckedByStrongerModel() {
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(unsure("Bon abgeschnitten")));
+        when(client.extract(any(), any(), eq("gross"))).thenReturn(Optional.of(good()));
+        assertThat(service(true).recognize(IMAGES)).isPresent();
+        verify(client, times(2)).extract(any(), any(), any());
+    }
+
+    @Test
+    void ifBothModelsAreUncertainTheReceiptIsHandedToTheManager() {
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(unsure("Bon abgeschnitten")));
+        when(client.extract(any(), any(), eq("gross"))).thenReturn(Optional.of(unsure("Endbetrag verdeckt")));
+        assertThatThrownBy(() -> service(true).recognize(IMAGES))
+                .isInstanceOf(ReceiptUncertainException.class).hasMessage("Endbetrag verdeckt");
+    }
+
+    @Test
+    void uncertaintyOfTheSmallModelCountsEvenIfTheStrongModelFails() {
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(unsure("Bon abgeschnitten")));
+        when(client.extract(any(), any(), eq("gross"))).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service(true).recognize(IMAGES)).isInstanceOf(ReceiptUncertainException.class).hasMessage("Bon abgeschnitten");
+    }
+
+    @Test
+    void uncertainFlagWinsEvenIfNumbersLookPlausible() {
+        var claimsUnsure = new RawReceipt(2, "REWE", LocalDate.now().toString(), new BigDecimal("23.40"),
+                List.of(new RawPosition("Obst und Gemüse", new BigDecimal("23.40"))), Boolean.FALSE, "zwei Bons überlappen");
+        when(client.extract(any(), any(), any())).thenReturn(Optional.of(claimsUnsure));
+        assertThatThrownBy(() -> service(true).recognize(IMAGES)).isInstanceOf(ReceiptUncertainException.class);
+    }
+
+    @Test
+    void totalOfSeveralReceiptsIsKept() {
+        var several = new RawReceipt(3, "REWE, Kaufland", LocalDate.now().toString(), new BigDecimal("84.96"),
+                List.of(new RawPosition("Obst und Gemüse", new BigDecimal("60.00")),
+                        new RawPosition("Drogerie und Hygiene", new BigDecimal("24.96"))), Boolean.TRUE, null);
+        when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(several));
+        var s = service(true).recognize(IMAGES).orElseThrow();
+        assertThat(s.betrag()).isEqualByComparingTo("84.96");
+        assertThat(s.haendler()).isEqualTo("REWE, Kaufland");
+        verify(client, times(1)).extract(any(), any(), any());
     }
 
     @Test

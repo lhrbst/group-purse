@@ -57,7 +57,7 @@ Logs des Stacks liegen nach dem Lauf in `e2e/.run/` (`backend.log`, `web.log`); 
 | `contributions.spec.ts` | Familien, Raster, Verteilung auf die ältesten offenen Monate, Überfälligkeit, Guthaben, Storno, Sollbetrag |
 | `categories.spec.ts` | Unterkategorien, Ein-/Ausblenden, eigene Kategorien, Trennung je Gruppe |
 | `receipts-manual.spec.ts` | Aufteilung in Positionen, Summe, Beleg ohne Foto, Bearbeiten/Prüfen/Stornieren, Kontoausgabe |
-| `receipts-async.spec.ts` | Nur-Foto-Erfassung, Hintergrundverarbeitung, Fehler/Timeout/falsche Summen, manuelle Erfassung, Foto ersetzen, mehrere Fotos |
+| `receipts-async.spec.ts` | Nur-Foto-Erfassung, Hintergrundverarbeitung, Fehler/Timeout/falsche Summen, Unsicherheit der KI, mehrere Bons auf einem Foto, manuelle Erfassung, Foto ersetzen, mehrere Fotos |
 | `offline-upload.spec.ts` | Foto-Warteschlange im Gerät: ohne Netz, Neuladen, Ablehnung durch den Server, abgelaufene Sitzung |
 | `reports.spec.ts` | Diagramme, Haupt-/Unterkategorie, Filter |
 | `isolation.spec.ts` | Wohngruppen sehen nichts voneinander, eine Person in mehreren Gruppen |

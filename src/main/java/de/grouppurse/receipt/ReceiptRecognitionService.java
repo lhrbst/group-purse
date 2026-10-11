@@ -37,8 +37,10 @@ public class ReceiptRecognitionService {
 
     /**
      * Liest den Beleg mit dem kleinen Modell und teilt die Zeilen auf die wählbaren Kategorien auf. Ist ein Feld leer, die Aufteilung
-     * unvollständig oder die Summe der Positionen nicht gleich der Endsumme, geht derselbe Beleg einmal an das stärkere Modell.
-     * Liefert nur ein plausibles Ergebnis, sonst leer (Beleg wird dann wiederholt bzw. manuell erfasst).
+     * unvollständig, die Summe der Positionen nicht gleich der Endsumme oder das Modell unsicher, geht derselbe Beleg einmal an das
+     * stärkere Modell. Liefert nur ein plausibles Ergebnis, sonst leer (Beleg wird dann wiederholt bzw. manuell erfasst).
+     *
+     * @throws ReceiptUncertainException wenn das Modell den Beleg als nicht verlässlich lesbar meldet; ein erneuter Versuch bringt dann nichts
      */
     public Optional<ReceiptSuggestion> recognize(List<ReceiptImage> images) {
         if (!props.enabled() || images.isEmpty()) {
@@ -48,19 +50,39 @@ public class ReceiptRecognitionService {
         List<String> names = leaves.stream().map(CategoryDto::name).toList();
         LocalDate today = LocalDate.now();
 
-        Optional<ReceiptSuggestion> first = attempt(images, names, leaves, props.model());
-        if (first.isPresent() && ReceiptPlausibility.isPlausible(first.get(), today)) {
-            return first;
+        Attempt first = attempt(images, names, leaves, props.model());
+        if (first.usable(today)) {
+            return first.suggestion();
         }
-        return attempt(images, names, leaves, props.fallbackModel()).filter(s -> ReceiptPlausibility.isPlausible(s, today));
+        Attempt second = attempt(images, names, leaves, props.fallbackModel());
+        if (second.usable(today)) {
+            return second.suggestion();
+        }
+        String reason = second.uncertainty() != null ? second.uncertainty() : first.uncertainty();
+        if (reason != null) {
+            throw new ReceiptUncertainException(reason);
+        }
+        return Optional.empty();
     }
 
-    private Optional<ReceiptSuggestion> attempt(List<ReceiptImage> images, List<String> names, List<CategoryDto> leaves, String model) {
+    /** Ergebnis eines Modellaufrufs: Vorschlag (kann fehlen) und ggf. die Unsicherheit, die das Modell gemeldet hat. */
+    private record Attempt(Optional<ReceiptSuggestion> suggestion, String uncertainty) {
+        boolean usable(LocalDate today) {
+            return uncertainty == null && suggestion.isPresent() && ReceiptPlausibility.isPlausible(suggestion.get(), today);
+        }
+    }
+
+    private Attempt attempt(List<ReceiptImage> images, List<String> names, List<CategoryDto> leaves, String model) {
         try {
-            return client.extract(images, names, model).map(raw -> map(raw, leaves));
+            Optional<RawReceipt> raw = client.extract(images, names, model);
+            if (raw.isPresent() && raw.get().isUncertain()) {
+                String why = raw.get().unsicherheit();
+                return new Attempt(Optional.empty(), why == null || why.isBlank() ? "kein Grund genannt" : why.trim());
+            }
+            return new Attempt(raw.map(r -> map(r, leaves)), null);
         } catch (RuntimeException e) {
             log.warn("Belegerkennung mit {} fehlgeschlagen: {}", model, e.toString());
-            return Optional.empty();
+            return new Attempt(Optional.empty(), null);
         }
     }
 

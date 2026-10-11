@@ -15,7 +15,7 @@ async function managerSees(world: Setup & { manager: { api: Api } }, status: str
 test.describe('Beleg: nur Foto, Verarbeitung im Hintergrund', () => {
   test('photo only: processing is visible, then the AI result arrives and the manager approves', async ({ page, browser, world, llm }) => {
     await world.manager.api.setBalances(100, 0);
-    await llm.mode('slow', 2000); // KI braucht 2 Sekunden: so ist der Zwischenzustand sichtbar
+    await llm.mode('slow', 1500); // KI braucht 1,5 Sekunden (Timeout im Teststack: 3 s): so ist der Zwischenzustand sichtbar
     await openAs(page, world.member);
     await captureAndWait(page);
 
@@ -130,6 +130,43 @@ test.describe('Beleg: nur Foto, Verarbeitung im Hintergrund', () => {
       expect((await world.manager.api.balance()).barkasse).toBe(100);
     });
   }
+
+  test('if the AI says it is unsure the receipt goes straight to manual entry with the reason, without retries', async ({ page, world, llm }) => {
+    await world.manager.api.setBalances(100, 0);
+    await llm.mode('unsure');
+    const receipt = await world.member.api.capture(1);
+    await managerSees(world, 'MANUELL');
+    const detail = await (await world.manager.api.get(`/api/expenses/${receipt.id}`)).json();
+    expect(detail.betrag).toBe(0);
+    expect(detail.verarbeitungFehler).toContain('nicht sicher');
+    expect(detail.verarbeitungFehler).toContain('abgeschnitten');
+    expect((await llm.calls()).length).toBe(2); // kleines und stärkeres Modell, danach keine Wiederholung
+    expect((await world.manager.api.balance()).barkasse).toBe(100);
+
+    await openAs(page, world.manager, '/pruefung');
+    await expect(page.getByText(/Die KI ist sich nicht sicher: Der Endbetrag des mittleren Bons ist abgeschnitten/)).toBeVisible();
+  });
+
+  test('several receipts on one photo are booked as one expense with the summed total', async ({ world, llm }) => {
+    await llm.receipt({
+      belegAnzahl: 3,
+      sicher: true,
+      haendler: 'REWE, Kaufland, dm',
+      datum: new Date().toISOString().slice(0, 10),
+      gesamtbetrag: 61.32 + 23.64 + 17.99,
+      positionen: [
+        { kategorie: 'Obst und Gemüse', betrag: 40 },
+        { kategorie: 'Milch, Käse und Eier', betrag: 44.96 },
+        { kategorie: 'Drogerie und Hygiene', betrag: 17.99 },
+      ],
+    });
+    const receipt = await world.member.api.capture(1);
+    await managerSees(world, 'EINGEREICHT');
+    const detail = await (await world.manager.api.get(`/api/expenses/${receipt.id}`)).json();
+    expect(detail.betrag).toBe(-102.95);
+    expect(detail.positionen).toHaveLength(3);
+    expect(detail.haendler).toBe('REWE, Kaufland, dm');
+  });
 
   test('a model that takes too long is treated as a failure', async ({ world, llm }) => {
     test.setTimeout(120_000);

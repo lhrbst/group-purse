@@ -96,6 +96,8 @@ public class ReceiptProcessor {
                 } else {
                     expenses.recordRecognitionFailure(c.id(), "Die KI konnte den Beleg nicht eindeutig lesen.");
                 }
+            } catch (ReceiptUncertainException e) {
+                expenses.giveUpRecognition(c.id(), "Die KI ist sich nicht sicher: " + e.getMessage());
             } catch (RuntimeException e) {
                 log.warn("Beleg {} konnte nicht verarbeitet werden: {}", c.id(), e.toString());
                 try {

@@ -31,17 +31,22 @@ public class SpringAiReceiptClient implements ReceiptModelClient {
     @Override
     public Optional<RawReceipt> extract(List<ReceiptImage> images, List<String> categoryNames, String model) {
         String prompt = """
-                Du liest einen Kassenbon aus Deutschland. Die Fotos gehören alle zu demselben Bon (z. B. ein langer Bon in mehreren Teilen).
-                Gib nur die Daten im vorgegebenen JSON-Schema zurück.
-                - haendler: Name des Geschäfts
-                - datum: Kaufdatum im Format JJJJ-MM-TT
-                - gesamtbetrag: Endsumme des Bons in Euro als Zahl mit Punkt als Dezimaltrenner
-                - positionen: Ordne jede Zeile des Bons genau einer der erlaubten Kategorien zu und gib je Kategorie die Summe aller
-                  dazugehörigen Zeilen an. Rabatte und Pfand rechnest du bei der jeweiligen Kategorie mit ein. Die Summe aller
-                  Positionen muss dem gesamtbetrag entsprechen. Lebensmittel gehören in die passende Lebensmittel-Unterkategorie,
-                  Drogerie- und Haushaltsartikel in ihre eigenen Kategorien.
+                Du liest Kassenbons aus Deutschland. Die Fotos können einen Bon in mehreren Teilen zeigen oder mehrere verschiedene Bons
+                nebeneinander, auch überlappend. Gib nur die Daten im vorgegebenen JSON-Schema zurück.
+                Gehe so vor:
+                1. Zähle die verschiedenen Bons (belegAnzahl). Ein langer Bon, der über mehrere Fotos geht, zählt einmal.
+                2. Lies für jeden Bon den Endbetrag. gesamtbetrag ist die Summe der Endbeträge ALLER Bons, nicht nur eines Bons.
+                3. positionen: Ordne jede Zeile aller Bons genau einer der erlaubten Kategorien zu und gib je Kategorie die Summe aller
+                   dazugehörigen Zeilen über alle Bons an. Rabatte und Pfand rechnest du bei der jeweiligen Kategorie mit ein. Die Summe
+                   aller Positionen muss dem gesamtbetrag entsprechen. Lebensmittel gehören in die passende Lebensmittel-Unterkategorie,
+                   Drogerie- und Haushaltsartikel in ihre eigenen Kategorien.
+                4. haendler: Name des Geschäfts, bei mehreren Bons alle Namen kommagetrennt. datum: Kaufdatum JJJJ-MM-TT (bei mehreren
+                   Bons das späteste).
+                Setze sicher=false und nenne kurz den Grund in unsicherheit, sobald du dir bei einem Bon nicht sicher bist: Endbetrag
+                oder Zeilen sind abgeschnitten, verdeckt, unscharf oder überlappt, ein Bon ist nur teilweise zu sehen, die Zeilen ergeben
+                nicht den Endbetrag oder du musst Beträge raten. Rate niemals. Lieber unsicher als falsch.
                 Erlaubte Kategorien: %s
-                Wenn du dir bei einem Feld nicht sicher bist, setze es auf null.
+                Wenn du dir bei einem einzelnen Feld nicht sicher bist, setze es auf null.
                 """.formatted(String.join(", ", categoryNames));
         Future<RawReceipt> call = EXECUTOR.submit(() -> chat.prompt()
                 .options(OpenAiChatOptions.builder().model(model))
