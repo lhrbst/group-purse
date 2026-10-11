@@ -15,7 +15,18 @@ fi
 
 write_env() {
   umask 077
-  { cat secrets.env; printf "IMAGE_TAG='%s'\n" "$1"; } > .env.tmp
+  # DOMAIN und GRAFANA_DOMAIN aus den Geheimnissen lesen, um die abgeleiteten Werte für das Monitoring zu setzen
+  local domain grafana_domain
+  domain="$(set -a; . ./secrets.env; printf '%s' "$DOMAIN")"
+  grafana_domain="$(set -a; . ./secrets.env; printf '%s' "$GRAFANA_DOMAIN")"
+  {
+    cat secrets.env
+    printf "IMAGE_TAG='%s'\n" "$1"
+    printf "COMPOSE_PROFILES='monitoring'\n"
+    printf "PROBE_URL='https://%s/actuator/health'\n" "$domain"
+    printf "GRAFANA_ROOT_URL='https://%s'\n" "$grafana_domain"
+    printf "GRAFANA_COOKIE_SECURE='true'\n"
+  } > .env.tmp
   mv .env.tmp .env
 }
 

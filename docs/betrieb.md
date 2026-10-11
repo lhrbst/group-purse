@@ -20,6 +20,8 @@
 | `OPENAI_API_KEY` | API-Schlüssel (nur nötig, wenn die Belegerkennung an ist) |
 | `RECEIPT_AI_ENABLED` | `true` oder `false` |
 | `RECEIPT_MODEL`, `RECEIPT_FALLBACK_MODEL` | Modellnamen, Standard `gpt-6-luna` / `gpt-6.1-sol` |
+| `GRAFANA_DOMAIN` | Subdomain für Grafana, z. B. `grafana.kasse.deinverein.de` (eigener DNS-A-Record auf dieselbe IP) |
+| `GRAFANA_ADMIN_PASSWORD` | langes Zufallspasswort für den Grafana-Admin (`openssl rand -base64 24`) |
 
 6. **Push auf `main`** startet die Pipeline: Tests, Image bauen, auf den Server kopieren und starten.
 7. **Ersten Admin anlegen:** Die Seite `/registrieren` geht nur mit Beitrittscode. Deshalb den ersten Admin einmal direkt in der Datenbank anlegen.
@@ -45,11 +47,31 @@ values (gen_random_uuid(), 'Dein Name', 'du@deinverein.de', crypt('DEIN-LANGES-P
 - **Logs:** `docker compose -f /opt/gruppenkasse/docker-compose.yml logs -f app` (bzw. `caddy`, `db`).
 - **Zertifikate:** Caddy holt und erneuert sie automatisch. Das Volume `caddy_data` darf nicht gelöscht werden. Beim ersten Ausprobieren in der Caddyfile
   `acme_ca https://acme-staging-v02.api.letsencrypt.org/directory` im globalen Block eintragen und danach wieder entfernen.
-- **Überwachung:** Einen kostenlosen Uptime-Dienst auf `https://DOMAIN/actuator/health` einrichten, der bei Ausfall per E-Mail meldet.
+- **Überwachung:** Einen kostenlosen Uptime-Dienst auf `https://DOMAIN/actuator/health` einrichten, der bei Ausfall per E-Mail meldet. Das ist die einzige
+  aktive Meldung: das Monitoring (siehe unten) läuft auf derselben VM und kann einen Totalausfall nicht selbst melden.
 - **Passwort vergessen:** Es werden keine E-Mails verschickt. Ein Kassenverwalter erzeugt unter *Mitglieder → Passwort-Link* einen einmaligen Link (24 Stunden gültig)
   und gibt ihn der Person weiter. Für Kassenverwalter selbst geht das nur über den Admin; ein vergessenes Admin-Passwort setzt man per SQL zurück
   (`update person set passwort_hash = crypt('NEUES-PASSWORT', gen_salt('bf', 10)) where email = '…';`).
 - **Updates der Abhängigkeiten** kommen wöchentlich als Dependabot-Pull-Requests.
+
+## Monitoring (Grafana)
+
+Auf der VM laufen neben der App Prometheus (Metriken, 30 Tage), Loki + Alloy (Logs, 14 Tage), Grafana und Exporter für Server, Container, Datenbank und
+den HTTPS-Check, zusammen etwa 1,3 GB RAM. Nichts davon ist von außen erreichbar außer **Grafana unter `https://GRAFANA_DOMAIN`** (Anmeldung Pflicht).
+
+- **Einrichten:** DNS-A-Record für `GRAFANA_DOMAIN` setzen, die Secrets `GRAFANA_DOMAIN` und `GRAFANA_ADMIN_PASSWORD` hinterlegen, deployen. Anmelden als `admin`.
+- **Dashboards** (Ordner *technik* und *fachlich*): Übersicht, Anwendung, Datenbank, Server und Container, Logs, Belegerkennung, Betrieb, Sicherheit.
+  Sie sind Dateien im Repo (`deploy/monitoring/grafana/dashboards`) und werden aus `deploy/monitoring/tools/gen_dashboards.py` erzeugt. Änderungen dort machen
+  und `python deploy/monitoring/tools/gen_dashboards.py` ausführen; Änderungen in der Grafana-Oberfläche gehen verloren.
+- **Alarmregeln** (`deploy/monitoring/prometheus/rules`): Es wird **nichts versendet**. Der Zustand steht in Grafana unter *Alerting → Alert rules* und als
+  Tabelle auf dem Übersicht-Dashboard. Regeln testen: `promtool test rules deploy/monitoring/prometheus/tests/gruppenkasse.test.yml` (läuft auch in der CI).
+- **Metriken** der App liegen auf dem internen Management-Port 8081 (`/actuator/prometheus`) und sind nie öffentlich. Fachliche Metriken (`gk_…`) zählen nur
+  Vorgänge und Zeiten: keine Beträge, keine Personen, keine Wohngruppen.
+- **Logs** sind JSON mit einer Request-ID (`X-Request-Id` in jeder Antwort). Eine Meldung eines Nutzers lässt sich so über die Request-ID im Logs-Dashboard finden.
+- **Lokal ausprobieren:** `docker compose --profile monitoring up -d --build`, dann http://localhost:3000 (admin / admin). Auf Windows/macOS (Docker Desktop)
+  liefern cAdvisor und node_exporter nur eingeschränkte Werte (Container- und Plattenpanels bleiben leer); auf der Linux-VM funktionieren sie.
+- **Aufbewahrung:** Metriken 30 Tage (höchstens 3 GB), Logs 14 Tage. Volumes `prometheus_data`, `loki_data`, `grafana_data`.
+- **Speicher knapp?** In `deploy/monitoring/docker-compose.monitoring.yml` die Limits senken oder das Profil entfernen (`COMPOSE_PROFILES` in `deploy.sh`).
 
 ## Wichtig: keine Backups in Version 1
 

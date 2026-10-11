@@ -33,9 +33,9 @@ Speicherlimits je Container (Richtwerte): Prometheus 300 MB, Loki 300 MB, Grafan
 
 1. **Abhängigkeit** `micrometer-registry-prometheus`. Exponiert werden `health`, `info`, `prometheus`.
 2. **Management-Port 8081** (`management.server.port`). Er wird in Docker nicht veröffentlicht und nicht von Caddy durchgereicht. Folgen: Dockerfile-HEALTHCHECK, `deploy.sh` (`healthy`), E2E-Stack und `docker-compose.yml` (lokal) zeigen auf 8081. Die öffentliche Adresse `/actuator/health` bleibt über eine Caddy-Route auf `app:8081` für den externen Uptime-Check erhalten, nur `health` (keine anderen Actuator-Pfade). `SecurityConfig` und `SpaConfig` passen darauf an.
-3. **Strukturierte Logs:** `logging.structured.format.console=logstash` in Produktion (per Umgebungsvariable umschaltbar, lokal bleibt Klartext). Ein Filter vergibt je Anfrage eine Request-ID (MDC `requestId`, auch als Antwort-Header `X-Request-Id`) und setzt `wohngruppeId` aus dem Mandantenkontext. Keine Namen, E-Mails, Beträge oder Tokens in Logzeilen.
+3. **Strukturierte Logs:** `logging.structured.format.console=logstash` in Produktion (per Umgebungsvariable umschaltbar, lokal bleibt Klartext). Ein Filter vergibt je Anfrage eine Request-ID (MDC `requestId`, auch als Antwort-Header `X-Request-Id`) und enthält keine Wohngruppen-ID (keine Gruppenbezüge im Monitoring). Keine Namen, E-Mails, Beträge oder Tokens in Logzeilen.
 4. **Technische Metriken** kommen aus Spring Boot: JVM, GC, Threads, Tomcat, HikariCP, HTTP-Server mit Histogrammen (Route als Template, nie die konkrete URL), Logback-Zähler, Flyway, `@Scheduled`-Läufe. Perzentil-Histogramme für `http.server.requests` und die Belegerkennung aktivieren.
-5. **Fachliche Metriken** (Präfix `gk_`, Labels nur mit begrenzter Kardinalität, keine Personen, keine Gruppen, keine Beträge):
+5. **Fachliche Metriken** (Umsetzung: der Modellaufruf wird im Client als Timer `gk.receipt.ai.duration` mit `outcome` ok, timeout oder error gemessen, die Bewertung des Ergebnisses als Zähler `gk.receipt.ai.results` mit `result` usable, uncertain, implausible oder failed) (Präfix `gk_`, Labels nur mit begrenzter Kardinalität, keine Personen, keine Gruppen, keine Beträge):
 
 | Metrik | Art | Labels |
 | --- | --- | --- |

@@ -1,3 +1,18 @@
+{
+	# Metriken von Caddy (nur im Docker-Netz erreichbar, nicht veröffentlicht)
+	admin :2019
+	metrics
+}
+
+# Grafana (Dashboards); Anmeldung ist Pflicht, die Registrierung ist aus
+{$GRAFANA_DOMAIN} {
+	reverse_proxy grafana:3000
+	encode gzip
+	header {
+		-Server
+	}
+}
+
 {$DOMAIN} {
 	# Nur der Health-Check ist öffentlich (für den Uptime-Dienst); Metriken liegen auf dem internen Management-Port
 	handle /actuator/health* {

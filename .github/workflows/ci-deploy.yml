@@ -37,6 +37,22 @@ jobs:
           npm test
           npm run build
 
+  monitoring-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose-Dateien prüfen (lokal und Produktion, jeweils mit Monitoring)
+        run: |
+          docker compose --profile monitoring config -q
+          docker compose --env-file deploy/env.example -f deploy/docker-compose.yml config -q
+      - name: Prometheus-Konfiguration und Alarmregeln prüfen und testen
+        run: |
+          docker run --rm -v "$PWD/deploy/monitoring/prometheus:/p" --entrypoint promtool prom/prometheus:v3.5.0 check config /p/prometheus.yml
+          docker run --rm -v "$PWD/deploy/monitoring/prometheus:/p" --entrypoint promtool prom/prometheus:v3.5.0 test rules /p/tests/gruppenkasse.test.yml
+      - name: Dashboards prüfen (gültig und vom Generator erzeugt)
+        run: python3 deploy/monitoring/tools/check_dashboards.py
+
   docker-build:
     needs: test
     runs-on: ubuntu-latest
@@ -103,12 +119,14 @@ jobs:
           RECEIPT_AI_ENABLED: ${{ secrets.RECEIPT_AI_ENABLED }}
           RECEIPT_MODEL: ${{ secrets.RECEIPT_MODEL }}
           RECEIPT_FALLBACK_MODEL: ${{ secrets.RECEIPT_FALLBACK_MODEL }}
+          GRAFANA_DOMAIN: ${{ secrets.GRAFANA_DOMAIN }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         run: |
           umask 077
           q() { printf "%s='%s'\n" "$1" "${2//\'/\'\\\'\'}"; }
           {
             q GITHUB_REPOSITORY "${GITHUB_REPOSITORY,,}"
-            for name in DOMAIN DB_PASSWORD OPENAI_API_KEY RECEIPT_AI_ENABLED RECEIPT_MODEL RECEIPT_FALLBACK_MODEL; do
+            for name in DOMAIN DB_PASSWORD OPENAI_API_KEY RECEIPT_AI_ENABLED RECEIPT_MODEL RECEIPT_FALLBACK_MODEL GRAFANA_DOMAIN GRAFANA_ADMIN_PASSWORD; do
               q "$name" "${!name}"
             done
           } > secrets.env
@@ -117,6 +135,7 @@ jobs:
         run: |
           SSH="ssh -i ~/.ssh/deploy_key $SSH_USER@$SSH_HOST"
           scp -i ~/.ssh/deploy_key deploy/docker-compose.yml deploy/Caddyfile deploy/postgres.conf deploy/deploy.sh "$SSH_USER@$SSH_HOST:/opt/gruppenkasse/"
+          scp -r -i ~/.ssh/deploy_key deploy/monitoring "$SSH_USER@$SSH_HOST:/opt/gruppenkasse/"
           scp -i ~/.ssh/deploy_key secrets.env "$SSH_USER@$SSH_HOST:/opt/gruppenkasse/secrets.env"
           $SSH 'chmod 600 /opt/gruppenkasse/secrets.env && chmod 755 /opt/gruppenkasse/deploy.sh'
 

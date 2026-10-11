@@ -13,6 +13,7 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN}
+      GRAFANA_DOMAIN: ${GRAFANA_DOMAIN:?GRAFANA_DOMAIN fehlt (Subdomain für Grafana, z. B. grafana.kasse.deinverein.de)}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data        # Zertifikate: muss erhalten bleiben (Let's-Encrypt-Rate-Limits)

@@ -27,6 +27,10 @@ export function PrivacyNotice() {
           übermittelt werden. Das Foto wird dort nicht zu eigenen Zwecken gespeichert. Buchungen und Belege werden aus Buchführungsgründen
           in der Regel zehn Jahre aufbewahrt. Ausgeschiedene Personen werden gesperrt, ihre Buchungen bleiben mit Namen erhalten.
         </Text>
+        <Text size="sm" mb="xs">
+          Zum Betrieb der Anwendung erfassen wir technische Betriebsdaten (z. B. Anzahl und Dauer von Anfragen, Fehlermeldungen). Sie enthalten keine
+          Beträge und keine Namen oder E-Mail-Adressen und werden nach 14 Tagen (Protokolle) bzw. 30 Tagen (Messwerte) gelöscht.
+        </Text>
         <Text size="sm">
           Die Daten liegen auf einem Server in Deutschland. Du kannst Auskunft, Berichtigung und Einschränkung der Verarbeitung beim
           Vorstand des Vereins verlangen. Mit deiner Zustimmung bestätigst du, diesen Hinweis gelesen zu haben.

@@ -56,6 +56,16 @@ Playwright testet die ganze App im Browser gegen den echten Stack (PostgreSQL, B
 cd e2e && npm ci && npm run install:browsers && npm test
 ```
 
+### Monitoring lokal ansehen
+
+Metriken (Prometheus), Logs (Loki) und Dashboards (Grafana), Aufbau und Betrieb siehe `docs/betrieb.md`:
+
+```bash
+docker compose --profile monitoring up -d --build      # App im Container + Monitoring; Grafana: http://localhost:3000 (admin / admin)
+```
+
+Die Metriken der App liegen auf dem Management-Port 8081 (`/actuator/prometheus`), nicht auf dem öffentlichen Port.
+
 ### API-Client neu erzeugen
 
 Nach Änderungen an Controllern oder DTOs:
