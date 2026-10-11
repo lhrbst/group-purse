@@ -24,7 +24,7 @@ Browser -> Caddy -> app:8080 (API + Oberfläche)
 app:8081 (Management, nur intern) <- Prometheus (scrape alle 15 s)
 postgres_exporter, node_exporter, cAdvisor, blackbox_exporter, Caddy-Metriken <- Prometheus
 Docker-Logs -> Alloy -> Loki
-Prometheus, Loki -> Grafana (Dashboards, Alarmregeln)
+Prometheus, Loki -> Grafana (Dashboards, Anzeige der Alarmregeln)
 ```
 
 Speicherlimits je Container (Richtwerte): Prometheus 300 MB, Loki 300 MB, Grafana 250 MB, Alloy 150 MB, cAdvisor 120 MB, übrige Exporter je 30 MB. Das sind rund 1,3 GB zusätzlich zu App, Datenbank und Caddy (rund 1,1 GB). Aufbewahrung: Prometheus 30 Tage (Größenlimit 3 GB), Loki 14 Tage (Größenlimit 3 GB).
@@ -71,7 +71,7 @@ Als JSON im Repo, automatisch eingespielt, in zwei Ordnern.
 
 ## Alarmregeln
 
-Grafana-eigene Alarmierung, als Dateien im Repo. Zustand sichtbar in Grafana und auf der Übersicht, keine Zustellung.
+Prometheus-Regeldateien im Repo (mit `promtool test rules` getestet). Zustand sichtbar in Grafana unter Alerting und auf der Übersicht (Metrik `ALERTS`), keine Zustellung.
 
 | Bereich | Regel |
 | --- | --- |
