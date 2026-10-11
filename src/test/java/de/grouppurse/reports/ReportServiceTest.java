@@ -96,6 +96,17 @@ class ReportServiceTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void rejectedExpensesAreNotCounted() {
+        Buchung rejected = spend(pk, "40.00", "2026-01-15", lebensmittel, null);
+        t.as(kv, g, () -> expenses.reject(rejected.id, "Foto unleserlich"));
+        var rows = t.as(kv, g, () -> reports.expensesByCategoryAndMonth(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), null, null, null));
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).summe()).isEqualByComparingTo("20.00");
+        var months = t.as(kv, g, () -> reports.incomeVsExpense(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31)));
+        assertThat(months.get(0).ausgaben()).isEqualByComparingTo("20.00");
+    }
+
+    @Test
     void filtersByPersonAndResident() {
         var byPk = t.as(kv, g, () -> reports.expensesByCategoryAndMonth(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), pk.id, null, null));
         assertThat(byPk).hasSize(2);

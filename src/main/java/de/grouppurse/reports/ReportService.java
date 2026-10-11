@@ -88,7 +88,7 @@ public class ReportService {
     }
 
     /**
-     * Ausgaben (Barkasse und Konto, ohne stornierte) je Monat und Kategorie, als positive Beträge, aus den Belegpositionen.
+     * Ausgaben (Barkasse und Konto, ohne stornierte und abgelehnte) je Monat und Kategorie, als positive Beträge, aus den Belegpositionen.
      * byMain fasst Unterkategorien zur Hauptkategorie zusammen. Ein Kategoriefilter auf eine Hauptkategorie schließt ihre Unterkategorien ein.
      */
     public List<CategoryMonthSum> expensesByCategoryAndMonth(LocalDate von, LocalDate bis, UUID person, String bewohner, UUID kategorie, boolean byMain) {
@@ -166,7 +166,7 @@ public class ReportService {
     private List<Buchung> expenseRows(LocalDate von, LocalDate bis, UUID person, String bewohner) {
         Specification<Buchung> spec = (r, q, cb) -> cb.and(
                 r.get("art").in(Art.AUSGABE, Art.KONTOAUSGABE),
-                cb.notEqual(r.get("status"), BuchungStatus.STORNIERT),
+                cb.not(r.get("status").in(BuchungStatus.STORNIERT, BuchungStatus.ABGELEHNT)),
                 cb.greaterThanOrEqualTo(r.<LocalDate>get("datum"), von),
                 cb.lessThanOrEqualTo(r.<LocalDate>get("datum"), bis));
         if (person != null) {
