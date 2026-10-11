@@ -1,0 +1,43 @@
+// Sammelt die Logs von app, caddy und db über den Docker-Socket und schickt sie an Loki.
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+discovery.relabel "gruppenkasse" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "app|caddy|db"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "gruppenkasse" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.gruppenkasse.output
+  forward_to = [loki.process.json.receiver]
+}
+
+// Die App schreibt JSON (Spring Boot "logstash"-Format); daraus nur den Level als Label übernehmen.
+// Alles andere (Request-ID, Meldung) bleibt in der Zeile und ist per Textsuche auffindbar.
+loki.process "json" {
+  stage.json {
+    expressions = { level = "level" }
+  }
+  stage.labels {
+    values = { level = "" }
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

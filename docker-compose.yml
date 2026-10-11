@@ -1,16 +1,20 @@
 # Lokales Testen des fertigen Images (Backend + Frontend in einem Container, plus Postgres).
 #   docker compose up --build        -> http://localhost:8080
 #   docker compose down -v           -> alles inkl. Daten löschen
+#   docker compose --profile monitoring up -d   -> zusätzlich Grafana (http://localhost:3000, admin/admin), Prometheus, Loki
 # Optional: KI-Belegerkennung über eine .env neben dieser Datei (wird nicht eingecheckt):
 #   OPENAI_API_KEY=sk-...
 #   RECEIPT_AI_ENABLED=true
 name: gruppenkasse-local
 
+include:
+  - path: deploy/monitoring/docker-compose.monitoring.yml   # nur mit --profile monitoring aktiv
+
 services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-8080}:8080"
     environment:
       DB_URL: jdbc:postgresql://db:5432/grouppurse
       DB_USER: grouppurse

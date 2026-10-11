@@ -1,0 +1,112 @@
+# Monitoring-Stack: Prometheus (Metriken), Loki + Alloy (Logs), Grafana (Dashboards), dazu Exporter.
+# Wird von der Haupt-Compose-Datei per "include" eingebunden und läuft nur mit dem Profil "monitoring":
+#   lokal:        docker compose --profile monitoring up -d        (Grafana: http://localhost:3000, admin / admin)
+#   Produktion:   deploy.sh setzt COMPOSE_PROFILES=monitoring in der .env
+# Nichts hier ist von außen erreichbar, außer Grafana auf 127.0.0.1:3000 (Caddy reicht es per HTTPS durch).
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    user: "65534:65534"
+    environment:
+      PROBE_URL: ${PROBE_URL:-http://app:8081/actuator/health}
+    # Das Ziel des HTTPS-Checks hängt von der Umgebung ab und wird deshalb beim Start in eine Datei geschrieben
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /tmp/targets
+        echo "- targets: ['$${PROBE_URL}']" > /tmp/targets/probe.yml
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=30d --storage.tsdb.retention.size=3GB
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    mem_limit: 300m
+
+  loki:
+    image: grafana/loki:3.5.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    mem_limit: 300m
+
+  alloy:
+    image: grafana/alloy:v1.10.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    user: "0:0"
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data", "--server.http.listen-addr=0.0.0.0:12345"]
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    mem_limit: 150m
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_SECURITY_COOKIE_SECURE: ${GRAFANA_COOKIE_SECURE:-false}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    mem_limit: 250m
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    pid: host
+    command: ["--path.rootfs=/host"]
+    volumes:
+      - /:/host:ro
+    mem_limit: 30m
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    command: ["--docker_only=true", "--housekeeping_interval=30s", "--store_container_labels=false"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    mem_limit: 120m
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://grouppurse:${DB_PASSWORD:-grouppurse}@db:5432/grouppurse?sslmode=disable
+    mem_limit: 30m
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.27.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    mem_limit: 30m
+
+volumes:
+  prometheus_data:
+  loki_data:
+  alloy_data:
+  grafana_data:

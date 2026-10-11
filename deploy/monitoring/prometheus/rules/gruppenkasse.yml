@@ -1,0 +1,106 @@
+# Alarmregeln. Es gibt keine Zustellung (kein Alertmanager): der Zustand ist in Grafana (Alerting > Alert rules) und
+# auf dem Übersicht-Dashboard sichtbar.
+groups:
+  - name: verfuegbarkeit
+    rules:
+      - alert: AppDown
+        expr: up{job="app"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: Die Anwendung antwortet nicht auf Metrik-Abfragen.
+
+      - alert: HttpsProbeFailed
+        expr: probe_success == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: Der Erreichbarkeitstest der öffentlichen Adresse schlägt fehl.
+
+      - alert: CertExpiresSoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) < 14 * 24 * 3600
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: Das HTTPS-Zertifikat läuft in weniger als 14 Tagen ab.
+
+  - name: anwendung
+    rules:
+      - alert: High5xxRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            / sum(rate(http_server_requests_seconds_count[5m])) > 0.02
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: Mehr als 2 % der Anfragen enden mit einem Serverfehler.
+
+      - alert: SlowRequests
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~"/actuator.*"}[5m]))) > 2
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: Das 95. Perzentil der Antwortzeit liegt über 2 Sekunden.
+
+      - alert: HeapHigh
+        expr: sum(jvm_memory_used_bytes{area="heap"}) / sum(jvm_memory_max_bytes{area="heap"}) > 0.85
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: Der Java-Heap ist zu über 85 % belegt.
+
+      - alert: ConnectionPoolWaiting
+        expr: hikaricp_connections_pending > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: Anfragen warten auf eine Datenbankverbindung.
+
+  - name: server
+    rules:
+      - alert: DiskAlmostFull
+        expr: 1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} > 0.85
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: Die Platte ist zu über 85 % voll.
+
+      - alert: MemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: Weniger als 10 % des Arbeitsspeichers sind verfügbar.
+
+      - alert: ContainerRestarted
+        expr: changes(container_start_time_seconds{name=~".+"}[15m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: Ein Container wurde in den letzten 15 Minuten neu gestartet.
+
+  - name: belegerkennung
+    rules:
+      - alert: ReceiptAiFailureRate
+        expr: |
+          sum(rate(gk_receipt_ai_results_total{result=~"failed|implausible"}[15m]))
+            / sum(rate(gk_receipt_ai_results_total[15m])) > 0.5
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: Mehr als die Hälfte der Belegerkennungen scheitert oder ist unplausibel.
+
+      - alert: ReceiptsGivenUp
+        expr: sum(increase(gk_receipt_ai_gave_up_total[1h])) > 5
+        labels: {severity: warning}
+        annotations:
+          summary: Mehr als 5 Belege in einer Stunde wurden zur manuellen Erfassung freigegeben.
+
+  - name: sicherheit
+    rules:
+      - alert: LoginFailuresSpike
+        expr: sum(rate(gk_login_total{outcome=~"failure|locked"}[2m])) * 60 > 10
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: Auffällig viele fehlgeschlagene Anmeldungen pro Minute.

@@ -1,0 +1,103 @@
+rule_files:
+  - ../rules/gruppenkasse.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    name: App fällt aus
+    input_series:
+      - series: 'up{job="app"}'
+        values: '1 1 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: AppDown
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: AppDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: app}
+            exp_annotations:
+              summary: Die Anwendung antwortet nicht auf Metrik-Abfragen.
+
+  - interval: 1m
+    name: Gesunder Betrieb löst nichts aus
+    input_series:
+      - series: 'up{job="app"}'
+        values: '1x20'
+      - series: 'probe_success{instance="x"}'
+        values: '1x20'
+      - series: 'http_server_requests_seconds_count{status="200"}'
+        values: '0+60x20'
+      - series: 'http_server_requests_seconds_count{status="500"}'
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: AppDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: HttpsProbeFailed
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: High5xxRate
+        exp_alerts: []
+
+  - interval: 1m
+    name: Hohe Fehlerquote
+    input_series:
+      - series: 'http_server_requests_seconds_count{status="200"}'
+        values: '0+70x20'
+      - series: 'http_server_requests_seconds_count{status="500"}'
+        values: '0+30x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: High5xxRate
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: High5xxRate
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: Mehr als 2 % der Anfragen enden mit einem Serverfehler.
+
+  - interval: 1m
+    name: Viele aufgegebene Belege
+    input_series:
+      - series: 'gk_receipt_ai_gave_up_total{reason="uncertain"}'
+        values: '0 0 1 2 3 4 5 6 7 7 7'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ReceiptsGivenUp
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: ReceiptsGivenUp
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: Mehr als 5 Belege in einer Stunde wurden zur manuellen Erfassung freigegeben.
+
+  - interval: 1m
+    name: Anmeldungen schlagen gehäuft fehl
+    input_series:
+      - series: 'gk_login_total{outcome="failure"}'
+        values: '0+20x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: LoginFailuresSpike
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: Auffällig viele fehlgeschlagene Anmeldungen pro Minute.
+
+  - interval: 1m
+    name: Zertifikat läuft bald ab
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{instance="x"}'
+        values: '864000+0x120'   # läuft 10 Tage nach dem Zeitpunkt 0 ab
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: CertExpiresSoon
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: x}
+            exp_annotations:
+              summary: Das HTTPS-Zertifikat läuft in weniger als 14 Tagen ab.

@@ -1,5 +1,8 @@
 name: gruppenkasse
 
+include:
+  - path: monitoring/docker-compose.monitoring.yml
+
 services:
   caddy:
     image: caddy:2-alpine
