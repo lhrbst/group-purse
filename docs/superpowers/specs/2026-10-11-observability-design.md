@@ -49,7 +49,6 @@ Speicherlimits je Container (Richtwerte): Prometheus 300 MB, Loki 300 MB, Grafan
 | `gk_receipt_end_to_end_seconds` | Timer | `outcome`; Zeit von der Aufnahme bis zum Ergebnis (EINGEREICHT oder MANUELL) |
 | `gk_receipts_open` | Gauge | `gruppe`, `status` (VERARBEITUNG, MANUELL, EINGEREICHT) |
 | `gk_oldest_open_receipt_age_seconds` | Gauge | `gruppe`, `status` |
-| `gk_cash_balance_eur` | Gauge | `gruppe`, `konto` (barkasse, bankkonto) |
 | `gk_contributions_overdue_families` | Gauge | `gruppe` |
 | `gk_members` | Gauge | `gruppe`, `rolle`, `status` |
 | `gk_groups` | Gauge | – |
@@ -73,7 +72,7 @@ Dateien unter `deploy/monitoring/`:
 Als JSON im Repo, automatisch eingespielt, in zwei Ordnern.
 
 - **Technik:** Übersicht (Ampeln, aktive Alarme), Anwendung (Rate, Fehler, p50/95/99 pro Route, JVM, GC, Threads, Tomcat, Hikari), Datenbank (Verbindungen, Sperren, Größe, langsame Abfragen laut Log), Server und Container (CPU, RAM, Swap, Platte, Neustarts), Logs (Fehler, Suche nach Request-ID).
-- **Fachlich:** Belegerkennung (Trichter: erfasst, gelesen, unsicher, manuell; Dauer je Modell; Fallback- und Fehlerquote; Token-Verbrauch; Gesamtdauer), Kasse und Betrieb (offene Belege und Alter, Kassenstände, überfällige Beiträge, Aktivität), Sicherheit (Logins, 401/403/429, gesperrte Konten).
+- **Fachlich:** Belegerkennung (Trichter: erfasst, gelesen, unsicher, manuell; Dauer je Modell; Fallback- und Fehlerquote; Token-Verbrauch; Gesamtdauer), Kasse und Betrieb (offene Belege und Alter, überfällige Beiträge als Anzahl, Aktivität), Sicherheit (Logins, 401/403/429, gesperrte Konten).
 
 ## Alarmregeln
 
@@ -85,11 +84,11 @@ Grafana-eigene Alarmierung, als Dateien im Repo. Zustand sichtbar in Grafana und
 | Anwendung | 5xx-Rate über 2 % (5 min), p95 über 2 s (10 min), Heap über 85 % (10 min), Verbindungspool wartet (5 min) |
 | Server | Platte über 85 %, verfügbarer RAM unter 10 %, Container-Neustart |
 | Belegerkennung | Beleg länger als 15 min in Verarbeitung, Fehlerquote der KI über 50 % (15 min), mehr als 5 Belege aufgegeben pro Stunde |
-| Fachlich | Kasse im Minus, Beleg länger als 7 Tage ungeprüft, mehr als 10 fehlgeschlagene Logins pro Minute |
+| Fachlich | Beleg länger als 7 Tage ungeprüft, mehr als 10 fehlgeschlagene Logins pro Minute |
 
 ## Datenschutz
 
-Metriken und Logs enthalten keine Personendaten. Das Label `gruppe` ist ein Organisationsname. Kassenstände als Metrik sind Betriebsdaten und nur in Grafana (Anmeldung Pflicht) sichtbar. Der Datenschutzhinweis und `docs/betrieb.md` werden um den Satz ergänzt, dass technische und aggregierte Betriebsdaten 14 bzw. 30 Tage aufbewahrt werden.
+Metriken und Logs enthalten keine Personendaten. Das Label `gruppe` ist ein Organisationsname. **Geldbeträge (Kassenstände, Buchungsbeträge, Ausgaben) werden nie als Metrik oder Log ausgegeben**, auch nicht aggregiert; die Metriken zählen nur Vorgänge. Der Datenschutzhinweis und `docs/betrieb.md` werden um den Satz ergänzt, dass technische und aggregierte Betriebsdaten 14 bzw. 30 Tage aufbewahrt werden.
 
 ## Tests
 
