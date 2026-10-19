@@ -33,10 +33,10 @@ services:
       COOKIE_SECURE: "true"
       LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash   # JSON-Logs für Loki
       STORAGE_DIR: /data/receipts
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      RECEIPT_AI_ENABLED: ${RECEIPT_AI_ENABLED}
-      RECEIPT_MODEL: ${RECEIPT_MODEL}
-      RECEIPT_FALLBACK_MODEL: ${RECEIPT_FALLBACK_MODEL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-disabled}
+      RECEIPT_AI_ENABLED: ${RECEIPT_AI_ENABLED:-false}
+      RECEIPT_MODEL: ${RECEIPT_MODEL:-gpt-6-luna}
+      RECEIPT_FALLBACK_MODEL: ${RECEIPT_FALLBACK_MODEL:-gpt-6.1-sol}
     volumes:
       - receipts:/data/receipts
     depends_on:

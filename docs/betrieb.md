@@ -17,13 +17,17 @@
 | `SSH_KEY` | Inhalt der Datei `deploy_key` (privater Schlüssel) |
 | `DOMAIN` | z. B. `kasse.deinverein.de` |
 | `DB_PASSWORD` | langes Zufallspasswort (`openssl rand -base64 32`) |
-| `OPENAI_API_KEY` | API-Schlüssel (nur nötig, wenn die Belegerkennung an ist) |
-| `RECEIPT_AI_ENABLED` | `true` oder `false` |
-| `RECEIPT_MODEL`, `RECEIPT_FALLBACK_MODEL` | Modellnamen, Standard `gpt-6-luna` / `gpt-6.1-sol` |
+| `OPENAI_API_KEY` | API-Schlüssel (optional; leer lassen, wenn die Belegerkennung aus ist) |
+| `RECEIPT_AI_ENABLED` | `true` oder `false` (optional, Standard `false`) |
+| `RECEIPT_MODEL`, `RECEIPT_FALLBACK_MODEL` | Modellnamen (optional), Standard `gpt-6-luna` / `gpt-6.1-sol` |
 | `GRAFANA_DOMAIN` | Subdomain für Grafana, z. B. `grafana.kasse.deinverein.de` (eigener DNS-A-Record auf dieselbe IP) |
 | `GRAFANA_ADMIN_PASSWORD` | langes Zufallspasswort für den Grafana-Admin (`openssl rand -base64 24`) |
 
-6. **Push auf `main`** startet die Pipeline: Tests, Image bauen, auf den Server kopieren und starten.
+   Pflicht sind `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `DOMAIN`, `DB_PASSWORD`, `GRAFANA_DOMAIN` und `GRAFANA_ADMIN_PASSWORD`. Fehlt eines, bricht der Deploy-Job ab,
+   bevor er etwas auf dem Server ändert (sonst würde `secrets.env` leer überschrieben). Die übrigen sind optional.
+
+6. **Push auf `main`** startet die Pipeline: Tests, Image bauen, auf den Server kopieren und starten, danach von außen prüfen.
+   Läuft schon ein manuell eingerichteter Server, siehe den nächsten Abschnitt.
 7. **Ersten Admin anlegen:** Die Seite `/registrieren` geht nur mit Beitrittscode. Deshalb den ersten Admin einmal direkt in der Datenbank anlegen.
    Das Passwort wird dabei mit `pgcrypto` gehasht (kompatibel mit dem BCrypt der App):
 
@@ -37,9 +41,56 @@ values (gen_random_uuid(), 'Dein Name', 'du@deinverein.de', crypt('DEIN-LANGES-P
    Hat die Person schon ein Konto, genügt: `update person set ist_admin = true where email = 'du@deinverein.de';`
    Danach legt der Admin unter *Wohngruppen* die Gruppen an und erzeugt für jeden Kassenverwalter einen Einladungslink und gibt ihn persönlich weiter.
 
+## Umstieg: vom manuellen Deploy auf die Pipeline
+
+Für einen Server, der bisher von Hand (Web-Konsole, `./deploy.sh latest`) betrieben wurde. Die Pipeline loggt sich als Benutzer `deploy` ein, schreibt `secrets.env`
+neu und startet den Stack. Deshalb müssen Benutzer, Dateirechte und Secrets vorher stimmen.
+
+1. **Schlüsselpaar für die Pipeline erzeugen** (auf dem eigenen Rechner, in einem Ordner **außerhalb des Repos**, z. B. Dokumente):
+   - PowerShell: `ssh-keygen -t ed25519 -f deploy_key -C deploy@github -N '""'`
+   - Git Bash oder Linux/macOS: `ssh-keygen -t ed25519 -f deploy_key -C deploy@github -N ""`
+
+   Es entstehen `deploy_key` (privat, nie weitergeben oder committen) und `deploy_key.pub` (öffentlich).
+2. **Auf der VM (Web-Konsole, als root) den Deploy-Benutzer einrichten.** Das Skript ist idempotent; es legt den Benutzer `deploy` an, trägt den öffentlichen Schlüssel ein,
+   richtet die Firewall (22, 80, 443) ein und schaltet die SSH-Passwortanmeldung ab (die Web-Konsole ist davon nicht betroffen). Den Inhalt von `deploy_key.pub` einsetzen:
+
+   ```
+   curl -fsSL https://raw.githubusercontent.com/lhrbst/group-purse/main/deploy/setup.sh -o /tmp/setup.sh
+   bash /tmp/setup.sh "ssh-ed25519 AAAA...hier-den-ganzen-Inhalt-von-deploy_key.pub... deploy@github"
+   ```
+3. **Dateien dem Benutzer `deploy` geben.** Bisher gehört alles in `/opt/gruppenkasse` root; die Pipeline kopiert dort als `deploy` hinein.
+
+   ```
+   chown -R deploy:deploy /opt/gruppenkasse
+   ls -ld /opt/gruppenkasse
+   ```
+4. **Aktuelle Werte ablesen.** Die Secrets in GitHub müssen den Werten der laufenden Installation entsprechen:
+
+   ```
+   cat /opt/gruppenkasse/secrets.env
+   ```
+
+   Die Werte stehen in einfachen Anführungszeichen; ohne die Anführungszeichen kopieren. **`DB_PASSWORD` muss exakt übereinstimmen:** Das Passwort steckt schon im Datenbank-Volume,
+   ein anderes würde der App den Datenbankzugriff nehmen. Danach die Konsole leeren (`clear`), damit die Werte nicht im Verlauf stehen.
+5. **GitHub-Secrets anlegen:** Repository → *Settings → Secrets and variables → Actions → New repository secret*, je ein Secret aus der Tabelle oben.
+   - `SSH_HOST`: IP der VM, `SSH_USER`: `deploy`.
+   - `SSH_KEY`: der **gesamte** Inhalt von `deploy_key` einschließlich der Zeilen `-----BEGIN OPENSSH PRIVATE KEY-----` und `-----END OPENSSH PRIVATE KEY-----`.
+   - Alle anderen aus der `secrets.env` der VM (Schritt 4).
+6. **Schlüssel testen** (auf dem eigenen Rechner, im Ordner mit `deploy_key`): `ssh -i deploy_key deploy@VM-IP "docker ps"` muss die laufenden Container zeigen.
+   Danach `deploy_key` und `deploy_key.pub` löschen (der private Schlüssel liegt jetzt nur noch in GitHub; geht er verloren, einfach ein neues Paar erzeugen und die Schritte 1, 2 und 5 für `SSH_KEY` wiederholen).
+7. **Dann auf `main` pushen** (oder dem Assistenten Bescheid geben) und unter *Actions* zusehen. Erwartet: `test`, `monitoring-config`, `docker-build`, `deploy` grün.
+   Der Deploy-Job endet mit „ist erreichbar und gesund“.
+
+**Wenn etwas schiefgeht**
+- *„Fehlende GitHub-Secrets“*: die genannten Secrets ergänzen und den Lauf erneut starten (*Re-run*). Auf dem Server wurde nichts verändert.
+- *„Permission denied“ beim Kopieren*: Schritt 3 (`chown`) fehlt oder die VM-Datei gehört wieder root.
+- *Health-Check schlägt fehl*: `deploy.sh` setzt automatisch auf den vorigen Tag zurück. Meist ist ein Secret falsch, vor allem `DB_PASSWORD`. Logs: `docker compose logs --tail=80 app` im Ordner `/opt/gruppenkasse`.
+- *„Von außen prüfen“ schlägt fehl, App läuft aber*: DNS-Eintrag, Firewall oder Caddy-Zertifikat prüfen (`docker compose logs caddy`).
+- *Schnell zurück zu einer älteren Version:* *Actions → Rollback → Run workflow* und den Git-Hash eintragen.
+
 ## Alltag
 
-- **Deploys** laufen bei jedem Push auf `main` automatisch. Spring Boot braucht auf einem Kern 20 bis 40 Sekunden zum Start, deshalb bevorzugt abends deployen.
+- **Deploys** laufen bei jedem Push auf `main` automatisch (nie bei Pull Requests) und enden mit einer Prüfung von außen. Spring Boot braucht auf einem Kern 20 bis 40 Sekunden zum Start, deshalb bevorzugt abends deployen.
 - **Rollback:** Schlägt der Health-Check (`/actuator/health`, 2 Minuten) fehl, setzt die Pipeline automatisch den vorigen Image-Tag.
   Manuell: GitHub → *Actions → Rollback* → *Run workflow* → gewünschten Tag (Git-Hash) eintragen.
 - **Datenbank-Migrationen** (Flyway) laufen beim Start. Ein Rollback setzt nur die App zurück, nicht die Datenbank. Migrationen deshalb abwärtskompatibel schreiben

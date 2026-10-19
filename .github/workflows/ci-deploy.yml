@@ -90,8 +90,7 @@ jobs:
   # "if: false" durch die auskommentierte Bedingung ersetzen und die SSH-/App-Secrets setzen.
   deploy:
     needs: docker-build
-    # if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    if: false
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -100,6 +99,22 @@ jobs:
       SSH_KEY: ${{ secrets.SSH_KEY }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Pflicht-Secrets prüfen (sonst würde secrets.env auf dem Server leer überschrieben)
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GRAFANA_DOMAIN: ${{ secrets.GRAFANA_DOMAIN }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: |
+          missing=()
+          for name in SSH_HOST SSH_USER SSH_KEY DOMAIN DB_PASSWORD GRAFANA_DOMAIN GRAFANA_ADMIN_PASSWORD; do
+            [[ -n "${!name:-}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error::Fehlende GitHub-Secrets: ${missing[*]} (Settings → Secrets and variables → Actions)"
+            exit 1
+          fi
 
       - name: Image-Name bestimmen (GHCR verlangt Kleinschreibung)
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -146,3 +161,17 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "docker login ghcr.io -u '$GHCR_USER' --password-stdin" <<< "$GHCR_TOKEN"
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "/opt/gruppenkasse/deploy.sh '${{ github.sha }}'"
+
+      - name: Von außen prüfen (DNS, Caddy, Zertifikat, App)
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+        run: |
+          for _ in $(seq 1 12); do
+            if curl -fsS --max-time 10 "https://${DOMAIN}/actuator/health" | grep -q '"status":"UP"'; then
+              echo "https://${DOMAIN} ist erreichbar und gesund."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::https://${DOMAIN}/actuator/health antwortet nicht (DNS, Caddy-Zertifikat oder Firewall prüfen: docker compose logs caddy)"
+          exit 1
