@@ -99,7 +99,7 @@ Der Kassenstand rechnet ab „eingereicht“, weil das Geld zu diesem Zeitpunkt 
 
 ### Standardkategorien
 
-Lebensmittel, Drogerie und Hygiene, Freizeit und Ausflüge, Fahrten, Haushalt, Anschaffungen, Geschenke und Feiern, Sonstiges.
+Lebensmittel, Haushalt und Drogerie, Freizeit und Ausflüge, Fahrten, Anschaffungen, Geschenke und Feiern, Sonstiges.
 
 ## Barkasse
 
@@ -415,6 +415,14 @@ Diese Entscheidungen ergänzen die Spezifikation und haben bei Widersprüchen Vo
 ### Begriff „Teammitglied“ (10.10.2026)
 
 In der App heißt die Rolle der Einkaufenden **Teammitglied** statt „Pflegekraft“, weil auch Assistenzkräfte oder andere Personen einkaufen. Wo die Spezifikation „Pflegekraft“ schreibt, ist das Teammitglied gemeint. Die technische Bezeichnung der Rolle (`pflegekraft`) bleibt in Code und Datenbank unverändert.
+
+### Kategorien zusammengeführt (19.10.2026)
+
+- „Drogerie und Hygiene“ und „Haushalt“ sind eine Kategorie, **„Haushalt und Drogerie“**. Die Standardkategorien (oben) sind entsprechend angepasst.
+- Die Migration `V6` behält die ID von „Haushalt“ und hängt alle Buchungen, Belegpositionen und gruppeneigenen Unterkategorien der Drogerie darauf um. Die Historie ist damit rückwirkend
+  zusammengefasst (Diagramme, Monatsbericht, PDF). In Gruppen, die eine der beiden Kategorien ausgeblendet hatten, ist die zusammengeführte sichtbar, sobald eine der beiden sichtbar war.
+  Eine gruppeneigene Kategorie mit genau dem neuen Namen heißt danach „… (eigene)“.
+- Die Belegerkennung kennt nur noch die zusammengeführte Kategorie (Prompt angepasst).
 
 ### Zurückgestellt (10.10.2026)
 

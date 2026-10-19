@@ -49,7 +49,7 @@ class MonthlyReportServiceTest extends AbstractIntegrationTest {
         t.member(pk, g, Rolle.PFLEGEKRAFT, MitgliedStatus.AKTIV);
         t.as(kv, g, () -> {
             obst = categories.visible().stream().filter(c -> c.name().equals("Obst und Gemüse")).findFirst().orElseThrow().id();
-            haushalt = categories.visible().stream().filter(c -> c.name().equals("Haushalt")).findFirst().orElseThrow().id();
+            haushalt = categories.visible().stream().filter(c -> c.name().equals("Haushalt und Drogerie")).findFirst().orElseThrow().id();
         });
     }
 
@@ -131,7 +131,7 @@ class MonthlyReportServiceTest extends AbstractIntegrationTest {
         MonthlyReport r = report(OKT);
         assertThat(r.kategorien()).hasSize(2);
         var first = r.kategorien().get(0);
-        assertThat(first.hauptkategorie()).isEqualTo("Haushalt");
+        assertThat(first.hauptkategorie()).isEqualTo("Haushalt und Drogerie");
         assertThat(first.unterkategorie()).isNull();
         assertThat(first.betrag()).isEqualByComparingTo("60.00");
         assertThat(first.anteilProzent()).isEqualByComparingTo("60.0");
@@ -156,7 +156,7 @@ class MonthlyReportServiceTest extends AbstractIntegrationTest {
         seedOctober();
         assertThat(report(OKT).zusammenfassung()).isEqualTo(
                 "Im Oktober 2026 wurden 100,00 € für 3 Belege ausgegeben, 1.328,6 % mehr als im September 2026 (7,00 €). "
-                        + "Die größten Posten waren Haushalt (60,00 €, 60,0 %) und Lebensmittel (40,00 €, 40,0 %).");
+                        + "Die größten Posten waren Haushalt und Drogerie (60,00 €, 60,0 %) und Lebensmittel (40,00 €, 40,0 %).");
     }
 
     @Test
@@ -186,7 +186,7 @@ class MonthlyReportServiceTest extends AbstractIntegrationTest {
         assertThat(r.belegAnzahl()).isEqualTo(1);
         var beleg = r.belege().get(0);
         assertThat(beleg.betrag()).isEqualByComparingTo("20.00");
-        assertThat(beleg.positionen()).extracting("kategorie").containsExactly("Haushalt", "Obst und Gemüse");
+        assertThat(beleg.positionen()).extracting("kategorie").containsExactly("Haushalt und Drogerie", "Obst und Gemüse");
         assertThat(r.kategorien().stream().map(ReportDtos.MonthlyCategory::betrag).toList())
                 .usingElementComparator(BigDecimal::compareTo).containsExactly(bd("12.00"), bd("8.00"));
     }
@@ -207,7 +207,7 @@ class MonthlyReportServiceTest extends AbstractIntegrationTest {
         });
         MonthlyReport r = report(OKT);
         assertThat(r.summe()).isEqualByComparingTo("15.00");
-        assertThat(r.kategorien().get(0).hauptkategorie()).isEqualTo("Haushalt");
+        assertThat(r.kategorien().get(0).hauptkategorie()).isEqualTo("Haushalt und Drogerie");
         assertThat(r.belege().get(0).positionen()).hasSize(1);
     }
 

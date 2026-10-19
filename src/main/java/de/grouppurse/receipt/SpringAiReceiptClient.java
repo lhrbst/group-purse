@@ -44,7 +44,7 @@ public class SpringAiReceiptClient implements ReceiptModelClient {
                 3. positionen: Ordne jede Zeile aller Bons genau einer der erlaubten Kategorien zu und gib je Kategorie die Summe aller
                    dazugehörigen Zeilen über alle Bons an. Rabatte und Pfand rechnest du bei der jeweiligen Kategorie mit ein. Die Summe
                    aller Positionen muss dem gesamtbetrag entsprechen. Lebensmittel gehören in die passende Lebensmittel-Unterkategorie,
-                   Drogerie- und Haushaltsartikel in ihre eigenen Kategorien.
+                   Drogerie-, Hygiene- und Haushaltsartikel gehören gemeinsam in die Kategorie "Haushalt und Drogerie".
                 4. haendler: Name des Geschäfts, bei mehreren Bons alle Namen kommagetrennt. datum: Kaufdatum JJJJ-MM-TT (bei mehreren
                    Bons das späteste).
                 Setze sicher=false und nenne kurz den Grund in unsicherheit, sobald du dir bei einem Bon nicht sicher bist: Endbetrag

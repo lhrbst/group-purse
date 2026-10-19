@@ -144,7 +144,7 @@ test.describe('Kasse: Konten, Buchungen, Bestand', () => {
 
   test('an overdrawn cash box is shown as a minus', async ({ page, browser, world }) => {
     await world.manager.api.setBalances(30, 500);
-    await world.member.api.manualExpense({ positions: [['Haushalt', 40]], haendler: 'Baumarkt' });
+    await world.member.api.manualExpense({ positions: [['Haushalt und Drogerie', 40]], haendler: 'Baumarkt' });
     expect((await world.manager.api.balance()).negativ).toBe(true);
 
     await openAs(page, world.manager, '/');

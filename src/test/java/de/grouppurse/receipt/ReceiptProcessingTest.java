@@ -96,7 +96,7 @@ class ReceiptProcessingTest extends AbstractIntegrationTest {
     @Test
     void processorFillsInTheReceiptAndItBecomesReadyForReview() throws Exception {
         String id = capture(pk);
-        when(client.extract(any(), any(), any())).thenReturn(Optional.of(good("23.40", "Obst und Gemüse", "8.40", "Haushalt", "15.00")));
+        when(client.extract(any(), any(), any())).thenReturn(Optional.of(good("23.40", "Obst und Gemüse", "8.40", "Haushalt und Drogerie", "15.00")));
 
         assertThat(processor.runOnce()).isEqualTo(1);
 
@@ -171,7 +171,7 @@ class ReceiptProcessingTest extends AbstractIntegrationTest {
     void managerCanFillInTheReceiptWhileTheAiIsStillWorkingAndTheAiResultThenIsIgnored() throws Exception {
         String id = capture(pk);
         String haushalt = JsonPath.<List<String>>read(mvc.perform(get("/api/categories").session(kv)).andReturn().getResponse().getContentAsString(),
-                "$[?(@.name=='Haushalt')].id").get(0);
+                "$[?(@.name=='Haushalt und Drogerie')].id").get(0);
         mvc.perform(put("/api/expenses/" + id + "/details").with(csrf()).session(kv).contentType(JSON)
                         .content("{\"datum\":\"" + LocalDate.now() + "\",\"positionen\":[{\"kategorieId\":\"" + haushalt + "\",\"betrag\":12.50}],\"haendler\":\"Baumarkt\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EINGEREICHT"));
@@ -189,7 +189,7 @@ class ReceiptProcessingTest extends AbstractIntegrationTest {
         MockHttpSession otherPk = t.pflegekraft(other);
         String mine = capture(pk);
         String theirs = capture(otherPk);
-        when(client.extract(any(), any(), any())).thenReturn(Optional.of(good("5.00", "Haushalt", "5.00")));
+        when(client.extract(any(), any(), any())).thenReturn(Optional.of(good("5.00", "Haushalt und Drogerie", "5.00")));
 
         assertThat(processor.runOnce()).isEqualTo(2);
 

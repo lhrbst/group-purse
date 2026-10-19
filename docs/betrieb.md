@@ -93,7 +93,7 @@ neu und startet den Stack. Deshalb müssen Benutzer, Dateirechte und Secrets vor
 - **Deploys** laufen bei jedem Push auf `main` automatisch (nie bei Pull Requests) und enden mit einer Prüfung von außen. Spring Boot braucht auf einem Kern 20 bis 40 Sekunden zum Start, deshalb bevorzugt abends deployen.
 - **Rollback:** Schlägt der Health-Check (`/actuator/health`, 2 Minuten) fehl, setzt die Pipeline automatisch den vorigen Image-Tag.
   Manuell: GitHub → *Actions → Rollback* → *Run workflow* → gewünschten Tag (Git-Hash) eintragen.
-- **Datenbank-Migrationen** (Flyway) laufen beim Start. Ein Rollback setzt nur die App zurück, nicht die Datenbank. Migrationen deshalb abwärtskompatibel schreiben
+- **Datenbank-Migrationen** (Flyway) laufen beim Start. Vor Migrationen, die bestehende Daten umschreiben (z. B. `V6`, Kategorien zusammenführen), vorher den manuellen Auszug ziehen (siehe „Wichtig: keine Backups“). Ein Rollback setzt nur die App zurück, nicht die Datenbank. Migrationen deshalb abwärtskompatibel schreiben
   (erst Spalten hinzufügen, erst in einer späteren Version entfernen).
 - **Logs:** `docker compose -f /opt/gruppenkasse/docker-compose.yml logs -f app` (bzw. `caddy`, `db`).
 - **Zertifikate:** Caddy holt und erneuert sie automatisch. Das Volume `caddy_data` darf nicht gelöscht werden. Beim ersten Ausprobieren in der Caddyfile

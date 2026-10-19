@@ -50,7 +50,8 @@ test.describe('Beleg: nur Foto, Verarbeitung im Hintergrund', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].images).toBe(1);
     expect(calls[0].categories).toContain('Obst und Gemüse');
-    expect(calls[0].categories).toContain('Haushalt');
+    expect(calls[0].categories).toContain('Haushalt und Drogerie');
+    expect(calls[0].categories).not.toContain('Drogerie und Hygiene');
     expect(calls[0].categories).not.toContain('Lebensmittel'); // nur wählbare Kategorien (ohne Oberkategorie)
   });
 
@@ -105,7 +106,7 @@ test.describe('Beleg: nur Foto, Verarbeitung im Hintergrund', () => {
     await page.getByRole('button', { name: 'Daten erfassen' }).click();
     await expect(dialog(page).getByText('Bitte Betrag, Datum und Kategorien vom Beleg abtippen.')).toBeVisible();
     await expect(dialog(page).getByRole('img', { name: 'Beleg 1' })).toBeVisible();
-    await pick(page, 'Kategorie Position 1', 'Haushalt');
+    await pick(page, 'Kategorie Position 1', 'Haushalt und Drogerie');
     await dialog(page).getByLabel('Betrag Position 1').fill('12,50');
     await dialog(page).getByLabel('Händler').fill('Baumarkt');
     await dialog(page).getByRole('button', { name: 'Speichern' }).click();
@@ -157,7 +158,7 @@ test.describe('Beleg: nur Foto, Verarbeitung im Hintergrund', () => {
       positionen: [
         { kategorie: 'Obst und Gemüse', betrag: 40 },
         { kategorie: 'Milch, Käse und Eier', betrag: 44.96 },
-        { kategorie: 'Drogerie und Hygiene', betrag: 17.99 },
+        { kategorie: 'Haushalt und Drogerie', betrag: 17.99 },
       ],
     });
     const receipt = await world.member.api.capture(1);
@@ -246,7 +247,7 @@ test.describe('Beleg: nur Foto, Verarbeitung im Hintergrund', () => {
   test('team members cannot edit or approve receipts', async ({ world }) => {
     const receipt = await world.member.api.capture(1);
     await managerSees(world, 'EINGEREICHT');
-    const body = { datum: '2026-01-01', positionen: [{ kategorieId: await world.member.api.categoryId('Haushalt'), betrag: 1 }] };
+    const body = { datum: '2026-01-01', positionen: [{ kategorieId: await world.member.api.categoryId('Haushalt und Drogerie'), betrag: 1 }] };
     expect((await world.member.api.put(`/api/expenses/${receipt.id}/details`, body)).status()).toBe(403);
     expect((await world.member.api.post(`/api/expenses/${receipt.id}/approve`)).status()).toBe(403);
     expect((await world.member.api.post(`/api/expenses/${receipt.id}/reject`, { kommentar: 'x' })).status()).toBe(403);

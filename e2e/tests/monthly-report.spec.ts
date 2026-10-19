@@ -11,7 +11,7 @@ const monthName = (offset: number) => {
 test.describe('Monatsübersicht und PDF-Bericht', () => {
   test('the manager sees the month as text and tables and downloads the PDF', async ({ page, world }) => {
     await world.manager.api.setBalances(500, 0);
-    await world.member.api.manualExpense({ positions: [['Obst und Gemüse', 20], ['Haushalt', 10]], haendler: 'REWE' });
+    await world.member.api.manualExpense({ positions: [['Obst und Gemüse', 20], ['Haushalt und Drogerie', 10]], haendler: 'REWE' });
     await world.manager.api.manualExpense({ positions: [['Getränke', 5]], haendler: 'Kiosk' });
 
     await openAs(page, world.manager, '/auswertungen');
@@ -31,7 +31,7 @@ test.describe('Monatsübersicht und PDF-Bericht', () => {
 
   test('an empty month says so and the month can be switched', async ({ page, world }) => {
     await world.manager.api.setBalances(500, 0);
-    await world.member.api.manualExpense({ positions: [['Haushalt', 12]], haendler: 'Baumarkt' });
+    await world.member.api.manualExpense({ positions: [['Haushalt und Drogerie', 12]], haendler: 'Baumarkt' });
     await openAs(page, world.manager, '/auswertungen');
     const card = page.locator('.mantine-Card-root', { has: page.getByRole('heading', { name: 'Monatsübersicht' }) });
     await expect(card.getByRole('cell', { name: 'Baumarkt' })).toBeVisible();

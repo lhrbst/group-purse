@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class CategoryTest extends AbstractIntegrationTest {
     private static final String JSON = "application/json";
-    private static final int MAIN = 8;
+    private static final int MAIN = 7;
     private static final int FOOD_SUBS = 10;
 
     private String idOf(MockHttpSession s, String name) throws Exception {
@@ -101,7 +101,7 @@ class CategoryTest extends AbstractIntegrationTest {
     void ownSubcategoryUnderAMainCategoryButOnlyOneLevel() throws Exception {
         Wohngruppe g = t.group("G");
         MockHttpSession kv = t.kassenverwalter(g);
-        String haushalt = idOf(kv, "Haushalt");
+        String haushalt = idOf(kv, "Haushalt und Drogerie");
         String created = mvc.perform(post("/api/categories").with(csrf()).session(kv).contentType(JSON)
                         .content("{\"name\":\"Putzmittel\",\"parentId\":\"" + haushalt + "\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.parentId").value(haushalt)).andReturn().getResponse().getContentAsString();

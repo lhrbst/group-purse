@@ -67,7 +67,7 @@ class ReportServiceTest extends AbstractIntegrationTest {
         t.member(pk, g, Rolle.PFLEGEKRAFT, MitgliedStatus.AKTIV);
         t.as(kv, g, () -> {
             lebensmittel = categories.visible().stream().filter(c -> c.name().equals("Obst und Gemüse")).findFirst().orElseThrow().id();
-            haushalt = categories.visible().stream().filter(c -> c.name().equals("Haushalt")).findFirst().orElseThrow().id();
+            haushalt = categories.visible().stream().filter(c -> c.name().equals("Haushalt und Drogerie")).findFirst().orElseThrow().id();
             ledger.anfangsbestand(Konto.BARKASSE, bd("300.00"), LocalDate.of(2026, 1, 1));
             ledger.anfangsbestand(Konto.VEREINSKONTO, bd("1000.00"), LocalDate.of(2026, 1, 1));
             var fam = families.create(new FamilyRequest("Müller", null, null, 5, bd("50.00"), LocalDate.of(2026, 1, 1), null));

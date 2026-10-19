@@ -37,7 +37,7 @@ class ExpenseWorkflowTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/ledger/anfangsbestand").with(csrf()).session(kv).contentType(JSON)
                 .content("{\"konto\":\"VEREINSKONTO\",\"betrag\":1000}")).andExpect(status().isOk());
         String cats = mvc.perform(get("/api/categories").session(kv)).andReturn().getResponse().getContentAsString();
-        haushalt = cats.replaceAll(".*\\{\"id\":\"([^\"]+)\",\"name\":\"Haushalt\".*", "$1");
+        haushalt = cats.replaceAll(".*\\{\"id\":\"([^\"]+)\",\"name\":\"Haushalt und Drogerie\".*", "$1");
     }
 
     static byte[] jpeg() {

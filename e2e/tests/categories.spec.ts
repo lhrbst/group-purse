@@ -14,10 +14,13 @@ test.describe('Kategorien und Unterkategorien', () => {
     for (const name of ['Lebensmittel › Obst und Gemüse', 'Lebensmittel › Brot und Backwaren', 'Lebensmittel › Milch, Käse und Eier',
       'Lebensmittel › Fleisch, Wurst und Fisch', 'Lebensmittel › Tiefkühl und Fertiggerichte', 'Lebensmittel › Grundnahrungsmittel',
       'Lebensmittel › Getränke', 'Lebensmittel › Süßes und Snacks', 'Lebensmittel › Aufstriche und Frühstück', 'Lebensmittel › Sonstige Lebensmittel',
-      'Drogerie und Hygiene', 'Haushalt', 'Fahrten', 'Anschaffungen', 'Freizeit und Ausflüge', 'Geschenke und Feiern', 'Sonstiges']) {
+      'Haushalt und Drogerie', 'Fahrten', 'Anschaffungen', 'Freizeit und Ausflüge', 'Geschenke und Feiern', 'Sonstiges']) {
       await expect(page.getByRole('option', { name, exact: true }), name).toBeVisible();
     }
     await expect(page.getByRole('option', { name: 'Lebensmittel', exact: true })).toHaveCount(0);
+    // zusammengeführt: die alten Einzelkategorien gibt es nicht mehr
+    await expect(page.getByRole('option', { name: 'Drogerie und Hygiene', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('option', { name: 'Haushalt', exact: true })).toHaveCount(0);
     await expect(page.getByRole('option', { name: /Pfand/ })).toHaveCount(0);
   });
 
@@ -42,7 +45,7 @@ test.describe('Kategorien und Unterkategorien', () => {
     await openAs(page, world.member);
     await openCategoryChoices(page);
     await expect(page.getByRole('option', { name: /^Lebensmittel/ })).toHaveCount(0);
-    await expect(page.getByRole('option', { name: 'Haushalt', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Haushalt und Drogerie', exact: true })).toBeVisible();
   });
 
   test('own categories and subcategories can be added; a main category with children is no longer selectable itself', async ({ page, world }) => {
@@ -53,7 +56,7 @@ test.describe('Kategorien und Unterkategorien', () => {
     await expect(page.getByText('Garten (eigene)')).toBeVisible();
 
     await page.getByLabel('Eigene Kategorie hinzufügen').fill('Putzmittel');
-    await pick(page, 'Unterkategorie von', 'Haushalt');
+    await pick(page, 'Unterkategorie von', 'Haushalt und Drogerie');
     await page.getByRole('button', { name: 'Hinzufügen' }).click();
     await toast(page, 'Kategorie angelegt.');
     await expect(page.getByText('Putzmittel (eigene)')).toBeVisible();
@@ -61,13 +64,13 @@ test.describe('Kategorien und Unterkategorien', () => {
     await openAs(page, world.member);
     await openCategoryChoices(page);
     await expect(page.getByRole('option', { name: 'Garten', exact: true })).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Haushalt › Putzmittel', exact: true })).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Haushalt', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('option', { name: 'Haushalt und Drogerie › Putzmittel', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Haushalt und Drogerie', exact: true })).toHaveCount(0);
   });
 
   test('duplicate names are rejected', async ({ page, world }) => {
     await openAs(page, world.manager, '/einstellungen');
-    await page.getByLabel('Eigene Kategorie hinzufügen').fill('haushalt');
+    await page.getByLabel('Eigene Kategorie hinzufügen').fill('haushalt und drogerie');
     await page.getByRole('button', { name: 'Hinzufügen' }).click();
     await toast(page, 'Eine Kategorie mit diesem Namen existiert bereits');
   });

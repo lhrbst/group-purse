@@ -18,6 +18,6 @@ class MigrationTest extends AbstractIntegrationTest {
                  'kategorie_gruppe','familie','sollbetrag','beitrag','buchung','audit_log','buchung_position')
                 """, Integer.class);
         assertThat(tables).isEqualTo(13);
-        assertThat(jdbc.queryForObject("select count(*) from kategorie_global", Integer.class)).isEqualTo(18);
+        assertThat(jdbc.queryForObject("select count(*) from kategorie_global", Integer.class)).isEqualTo(17);
     }
 }

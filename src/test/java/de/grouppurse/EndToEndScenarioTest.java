@@ -76,7 +76,7 @@ class EndToEndScenarioTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.vereinskonto").doesNotExist());
 
         // 5. Ausgabe erfassen, ablehnen, korrigieren, prüfen
-        List<String> cats = JsonPath.read(json(mvc.perform(get("/api/categories").session(pk)).andReturn()), "$[?(@.name=='Haushalt')].id");
+        List<String> cats = JsonPath.read(json(mvc.perform(get("/api/categories").session(pk)).andReturn()), "$[?(@.name=='Haushalt und Drogerie')].id");
         String category = cats.get(0);
         MvcResult submitted = mvc.perform(multipart("/api/expenses")
                         .file(new MockMultipartFile("data", "", JSON, expenseJson("30.00", category).getBytes(StandardCharsets.UTF_8)))

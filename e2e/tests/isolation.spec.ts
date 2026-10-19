@@ -6,7 +6,7 @@ test.describe('Mandantentrennung: Wohngruppen sehen nichts voneinander', () => {
   test('a manager of one group cannot reach data of another group', async ({ playwright, world }) => {
     const other = await createWorld(playwright, 'Fremde WG');
     await world.manager.api.setBalances(100, 100);
-    const expense = await world.member.api.manualExpense({ positions: [['Haushalt', 10]], haendler: 'Geheim' });
+    const expense = await world.member.api.manualExpense({ positions: [['Haushalt und Drogerie', 10]], haendler: 'Geheim' });
     const family = await world.manager.api.ok(await world.manager.api.post('/api/families', { name: 'Nur A', faelligkeitstag: 5, sollbetrag: 10, gueltigAb: '2026-01-01' }));
     await other.manager.api.setBalances(7, 8);
 
@@ -15,7 +15,7 @@ test.describe('Mandantentrennung: Wohngruppen sehen nichts voneinander', () => {
     expect(await (await b.get('/api/families')).json()).toEqual([]);
     expect((await b.get(`/api/expenses/${expense.id}`)).status()).toBe(404);
     expect((await b.get(`/api/receipts/${expense.id}/0`)).status()).toBe(404);
-    expect((await b.put(`/api/expenses/${expense.id}/details`, { datum: '2026-01-01', positionen: [{ kategorieId: await b.categoryId('Haushalt'), betrag: 1 }] })).status()).toBe(404);
+    expect((await b.put(`/api/expenses/${expense.id}/details`, { datum: '2026-01-01', positionen: [{ kategorieId: await b.categoryId('Haushalt und Drogerie'), betrag: 1 }] })).status()).toBe(404);
     expect((await b.post(`/api/expenses/${expense.id}/approve`)).status()).toBe(404);
     expect((await b.post(`/api/ledger/${expense.id}/storno`, { begruendung: 'Hack' })).status()).toBe(400);
     expect((await b.put(`/api/families/${family.id}`, { name: 'Gehackt' })).status()).toBe(404);

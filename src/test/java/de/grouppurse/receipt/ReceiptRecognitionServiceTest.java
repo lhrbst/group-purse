@@ -37,7 +37,7 @@ class ReceiptRecognitionServiceTest {
     List<CategoryDto> leaves = List.of(
             new CategoryDto(OBST, "Obst und Gemüse", true, false, LEBENSMITTEL),
             new CategoryDto(MILCH, "Milch, Käse und Eier", true, false, LEBENSMITTEL),
-            new CategoryDto(DROGERIE, "Drogerie und Hygiene", true, false, null));
+            new CategoryDto(DROGERIE, "Haushalt und Drogerie", true, false, null));
 
     @BeforeEach
     void setUp() {
@@ -53,7 +53,7 @@ class ReceiptRecognitionServiceTest {
         return new RawReceipt("REWE", LocalDate.now().minusDays(1).toString(), new BigDecimal("23.40"),
                 List.of(new RawPosition("obst und gemüse", new BigDecimal("8.40")),
                         new RawPosition("Lebensmittel › Milch, Käse und Eier", new BigDecimal("6.20")),
-                        new RawPosition("Drogerie und Hygiene", new BigDecimal("8.80"))));
+                        new RawPosition("Haushalt und Drogerie", new BigDecimal("8.80"))));
     }
 
     @Test
@@ -91,7 +91,7 @@ class ReceiptRecognitionServiceTest {
     void onlyAssignableCategoriesAreOfferedToTheModel() {
         when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(good()));
         service(true).recognize(IMAGES);
-        verify(client).extract(any(), eq(List.of("Obst und Gemüse", "Milch, Käse und Eier", "Drogerie und Hygiene")), eq("klein"));
+        verify(client).extract(any(), eq(List.of("Obst und Gemüse", "Milch, Käse und Eier", "Haushalt und Drogerie")), eq("klein"));
     }
 
     @Test
@@ -145,7 +145,7 @@ class ReceiptRecognitionServiceTest {
     void totalOfSeveralReceiptsIsKept() {
         var several = new RawReceipt(3, "REWE, Kaufland", LocalDate.now().toString(), new BigDecimal("84.96"),
                 List.of(new RawPosition("Obst und Gemüse", new BigDecimal("60.00")),
-                        new RawPosition("Drogerie und Hygiene", new BigDecimal("24.96"))), Boolean.TRUE, null);
+                        new RawPosition("Haushalt und Drogerie", new BigDecimal("24.96"))), Boolean.TRUE, null);
         when(client.extract(any(), any(), eq("klein"))).thenReturn(Optional.of(several));
         var s = service(true).recognize(IMAGES).orElseThrow();
         assertThat(s.betrag()).isEqualByComparingTo("84.96");

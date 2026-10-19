@@ -17,13 +17,13 @@ test.describe('Belege von Hand erfassen und prüfen', () => {
 
     // zweite Position, wieder entfernen, wieder hinzufügen: die Summe folgt
     await page.getByRole('button', { name: '+ Weitere Kategorie' }).click();
-    await pick(page, 'Kategorie Position 2', 'Haushalt');
+    await pick(page, 'Kategorie Position 2', 'Haushalt und Drogerie');
     await page.getByLabel('Betrag Position 2').fill('4,99');
     await expect(page.getByText(`Summe: ${eur(13.39)}`)).toBeVisible();
     await page.getByRole('button', { name: 'Position 2 entfernen' }).click();
     await expect(page.getByText(`Summe: ${eur(8.4)}`)).toBeVisible();
     await page.getByRole('button', { name: '+ Weitere Kategorie' }).click();
-    await pick(page, 'Kategorie Position 2', 'Haushalt');
+    await pick(page, 'Kategorie Position 2', 'Haushalt und Drogerie');
     await page.getByLabel('Betrag Position 2').fill('4,99');
 
     await page.getByLabel('Händler').fill('REWE');
@@ -35,7 +35,7 @@ test.describe('Belege von Hand erfassen und prüfen', () => {
 
     await expect(page.getByText('REWE')).toBeVisible();
     await expect(page.getByText('eingereicht', { exact: true })).toBeVisible();
-    await expect(page.getByText('Lebensmittel › Obst und Gemüse 8,40 € · Haushalt 4,99 €')).toBeVisible();
+    await expect(page.getByText('Lebensmittel › Obst und Gemüse 8,40 € · Haushalt und Drogerie 4,99 €')).toBeVisible();
     await expect(page.getByText('Ohne Beleg: Bon verloren')).toBeVisible();
     expect((await world.manager.api.balance()).barkasse).toBeCloseTo(86.61, 2);
 
@@ -59,18 +59,18 @@ test.describe('Belege von Hand erfassen und prüfen', () => {
     await openAs(page, world.member, '/beleg/ohne-foto');
     for (const [i, amount] of [[1, '5'], [2, '3,50']] as const) {
       if (i === 2) await page.getByRole('button', { name: '+ Weitere Kategorie' }).click();
-      await pick(page, `Kategorie Position ${i}`, 'Haushalt');
+      await pick(page, `Kategorie Position ${i}`, 'Haushalt und Drogerie');
       await page.getByLabel(`Betrag Position ${i}`).fill(amount);
     }
     await page.getByLabel('Begründung ohne Beleg').fill('Kein Bon');
     await page.getByRole('button', { name: 'Absenden' }).click();
     await toast(page, 'Ausgabe eingereicht.');
-    await expect(page.getByText(`Haushalt ${eur(8.5)}`)).toBeVisible();
+    await expect(page.getByText(`Haushalt und Drogerie ${eur(8.5)}`)).toBeVisible();
   });
 
   test('amounts with more than two decimals or no category are rejected', async ({ page, world }) => {
     await openAs(page, world.member, '/beleg/ohne-foto');
-    await pick(page, 'Kategorie Position 1', 'Haushalt');
+    await pick(page, 'Kategorie Position 1', 'Haushalt und Drogerie');
     await page.getByLabel('Betrag Position 1').fill('1,234');
     await page.getByRole('button', { name: 'Absenden' }).click();
     await expect(page.getByText('Höchstens zwei Nachkommastellen')).toBeVisible();
@@ -81,11 +81,11 @@ test.describe('Belege von Hand erfassen und prüfen', () => {
 
   test('the manager edits a receipt before approving and can cancel it', async ({ page, world }) => {
     await world.manager.api.setBalances(100, 0);
-    await world.member.api.manualExpense({ positions: [['Haushalt', 30]], haendler: 'Baumarkt', zweck: 'Schrauben' });
+    await world.member.api.manualExpense({ positions: [['Haushalt und Drogerie', 30]], haendler: 'Baumarkt', zweck: 'Schrauben' });
     expect((await world.manager.api.balance()).barkasse).toBe(70);
 
     await openAs(page, world.manager, '/pruefung');
-    await expect(page.getByText('Haushalt 30,00 €')).toBeVisible();
+    await expect(page.getByText('Haushalt und Drogerie 30,00 €')).toBeVisible();
     await page.getByRole('button', { name: 'Bearbeiten' }).click();
     await expect(dialog(page).getByRole('heading', { name: 'Beleg bearbeiten' }).or(dialog(page).getByText('Beleg bearbeiten'))).toBeVisible();
     await dialog(page).getByLabel('Betrag Position 1').fill('25');
@@ -96,7 +96,7 @@ test.describe('Belege von Hand erfassen und prüfen', () => {
     await dialog(page).getByRole('button', { name: 'Speichern' }).click();
     await toast(page, 'Beleg gespeichert. Er kann jetzt geprüft werden.');
     expect((await world.manager.api.balance()).barkasse).toBe(70.5);
-    await expect(page.getByText('Haushalt 25,00 € · Lebensmittel › Getränke 4,50 €')).toBeVisible();
+    await expect(page.getByText('Haushalt und Drogerie 25,00 € · Lebensmittel › Getränke 4,50 €')).toBeVisible();
 
     await page.getByRole('button', { name: 'Stornieren' }).click();
     await dialog(page).getByRole('textbox').fill('Doppelt erfasst');
@@ -124,8 +124,8 @@ test.describe('Belege von Hand erfassen und prüfen', () => {
   test('a team member only sees their own expenses', async ({ page, world }) => {
     await world.manager.api.setBalances(100, 0);
     const colleague = await world.addMember('Kollege');
-    await world.member.api.manualExpense({ positions: [['Haushalt', 10]], haendler: 'Meins' });
-    await colleague.api.manualExpense({ positions: [['Haushalt', 12]], haendler: 'Deins' });
+    await world.member.api.manualExpense({ positions: [['Haushalt und Drogerie', 10]], haendler: 'Meins' });
+    await colleague.api.manualExpense({ positions: [['Haushalt und Drogerie', 12]], haendler: 'Deins' });
     await openAs(page, world.member, '/meine-ausgaben');
     await expect(page.getByText('Meins')).toBeVisible();
     await expect(page.getByText('Deins')).toHaveCount(0);

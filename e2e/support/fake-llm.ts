@@ -41,7 +41,7 @@ export function defaultReceipt(): Receipt {
     positionen: [
       { kategorie: 'Obst und Gemüse', betrag: 8.4 },
       { kategorie: 'Milch, Käse und Eier', betrag: 6.2 },
-      { kategorie: 'Drogerie und Hygiene', betrag: 8.8 },
+      { kategorie: 'Haushalt und Drogerie', betrag: 8.8 },
     ],
   };
 }

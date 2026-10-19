@@ -93,7 +93,7 @@ class MetricsIntegrationTest extends AbstractIntegrationTest {
         double bookings = count("gk.ledger.bookings", "type", "AUSGABE");
         double e2e = timerCount("gk.receipt.end_to_end", "outcome", "EINGEREICHT");
         when(client.extract(any(), any(), any())).thenReturn(Optional.of(new RawReceipt("REWE", LocalDate.now().toString(),
-                new BigDecimal("12.00"), List.of(new RawPosition("Haushalt", new BigDecimal("12.00"))))));
+                new BigDecimal("12.00"), List.of(new RawPosition("Haushalt und Drogerie", new BigDecimal("12.00"))))));
 
         capture();
         assertThat(processor.runOnce()).isEqualTo(1);
