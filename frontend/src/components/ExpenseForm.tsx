@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ActionIcon, Alert, Button, Group, Select, Stack, Text, TextInput, Textarea } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import { DateField } from './DateField';
 import { useForm } from '@mantine/form';
 import { randomId } from '@mantine/hooks';
 import { useCategoryList } from '../api/generated/category-controller/category-controller';
@@ -128,7 +128,7 @@ export function ExpenseForm({ initial, allowPhotos = true, existingPhotos = 0, e
           <Text size="xs" c="dimmed">Die Summe ist der Betrag der Ausgabe. Ein Beleg mit nur einer Kategorie braucht nur eine Zeile.</Text>
         </Stack>
 
-        <DateInput label="Datum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} required {...form.getInputProps('datum')} />
+        <DateField label="Datum" quickPicks maxDate={todayIso()} required {...form.getInputProps('datum')} />
         <TextInput label="Händler" {...form.getInputProps('haendler')} />
         <TextInput label="Zweck" placeholder="z. B. Einkauf Wochenende" {...form.getInputProps('zweck')} />
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BarChart, LineChart } from '@mantine/charts';
 import { Card, Group, Select, SegmentedControl, SimpleGrid, Stack, Text, Title } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import { DateField } from '../../components/DateField';
 import { useCategoryList } from '../../api/generated/category-controller/category-controller';
 import { useMemberList } from '../../api/generated/member-controller/member-controller';
 import { useReportBalanceHistory, useReportByCategory, useReportIncomeVsExpense } from '../../api/generated/report-controller/report-controller';
@@ -39,8 +39,8 @@ export function ReportsPage() {
       <Title order={2}>Auswertungen</Title>
       <MonthlyOverview />
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-        <DateInput label="Von" valueFormat="DD.MM.YYYY" value={von} onChange={setVon} />
-        <DateInput label="Bis" valueFormat="DD.MM.YYYY" value={bis} onChange={setBis} />
+        <DateField label="Von" compact value={von} onChange={setVon} />
+        <DateField label="Bis" compact value={bis} onChange={setBis} />
         <Select
           label="Erfasst von"
           clearable

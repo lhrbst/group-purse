@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ActionIcon, Badge, Button, Checkbox, Group, MultiSelect, Select, Stack, Switch, Table, Tabs, Text, TextInput, Title } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import { DateField } from '../../components/DateField';
 import { useForm } from '@mantine/form';
 import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -98,7 +98,7 @@ function PaymentForm({ families, onClose }: { families: FamilyDto[]; onClose: ()
           }}
         />
         <TextInput label="Betrag (€)" inputMode="decimal" {...form.getInputProps('betrag')} />
-        <DateInput label="Eingangsdatum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} {...form.getInputProps('eingangsdatum')} />
+        <DateField label="Eingangsdatum" quickPicks maxDate={todayIso()} {...form.getInputProps('eingangsdatum')} />
         <MultiSelect label="Monat(e), für die gezahlt wurde" data={monthOptions()} searchable {...form.getInputProps('monate')} />
         <Text size="xs" c="dimmed" mt={-8}>
           Die App verteilt Zahlungen automatisch auf die ältesten offenen Monate. Mehr als fällig ist, bleibt als Guthaben stehen.
@@ -170,7 +170,7 @@ function FamilyForm({ family, onClose }: { family?: FamilyDto; onClose: () => vo
         {!family && (
           <>
             <TextInput label="Monatlicher Sollbetrag (€)" inputMode="decimal" {...form.getInputProps('sollbetrag')} />
-            <DateInput label="Gilt ab" valueFormat="DD.MM.YYYY" {...form.getInputProps('gueltigAb')} />
+            <DateField label="Gilt ab" {...form.getInputProps('gueltigAb')} />
           </>
         )}
         {family && <Switch label="Aktiv" {...form.getInputProps('aktiv', { type: 'checkbox' })} />}
@@ -205,7 +205,7 @@ function SollbetragForm({ family, onClose }: { family: FamilyDto; onClose: () =>
       <Stack>
         <Text size="sm" c="dimmed">Der neue Betrag gilt ab dem gewählten Monat. Frühere Monate behalten ihren alten Sollbetrag.</Text>
         <TextInput label="Neuer Monatsbeitrag (€)" inputMode="decimal" data-autofocus {...form.getInputProps('betrag')} />
-        <DateInput label="Gilt ab" valueFormat="DD.MM.YYYY" {...form.getInputProps('gueltigAb')} />
+        <DateField label="Gilt ab" {...form.getInputProps('gueltigAb')} />
         <Button type="submit" loading={set.isPending}>Speichern</Button>
       </Stack>
     </form>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Badge, Button, Card, Group, Loader, Select, Stack, Tabs, Text, Title } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import { DateField } from '../../components/DateField';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useExpenseApprove,
@@ -203,8 +203,8 @@ export function ReviewListPage() {
               onChange={setStatus}
               w={180}
             />
-            <DateInput label="Von" valueFormat="DD.MM.YYYY" clearable value={von} onChange={setVon} w={150} />
-            <DateInput label="Bis" valueFormat="DD.MM.YYYY" clearable value={bis} onChange={setBis} w={150} />
+            <DateField label="Von" compact clearable value={von} onChange={setVon} w={150} />
+            <DateField label="Bis" compact clearable value={bis} onChange={setBis} w={150} />
           </Group>
           {all.isLoading ? (
             <Loading />

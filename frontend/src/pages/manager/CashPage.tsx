@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Card, Group, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, TextInput, Textarea, Title } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import { DateField } from '../../components/DateField';
 import { useForm } from '@mantine/form';
 import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -131,7 +131,7 @@ function AuffuellungForm({ onClose }: { onClose: () => void }) {
       <Stack>
         <Text size="sm" c="dimmed">Bucht den Betrag vom Vereinskonto ab und in die Barkasse hinein.</Text>
         <TextInput label="Betrag (€)" inputMode="decimal" data-autofocus {...form.getInputProps('betrag')} />
-        <DateInput label="Datum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} {...form.getInputProps('datum')} />
+        <DateField label="Datum" quickPicks maxDate={todayIso()} {...form.getInputProps('datum')} />
         <TextInput label="Übergeben an" description="Teammitglied oder „Kasse direkt“" {...form.getInputProps('an')} />
         <Button type="submit" loading={m.isPending}>Auffüllung buchen</Button>
       </Stack>
@@ -161,7 +161,7 @@ function RueckgabeForm({ onClose }: { onClose: () => void }) {
       <Stack>
         <Text size="sm" c="dimmed">Bargeld aus der Barkasse wird wieder auf das Vereinskonto eingezahlt.</Text>
         <TextInput label="Betrag (€)" inputMode="decimal" data-autofocus {...form.getInputProps('betrag')} />
-        <DateInput label="Datum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} {...form.getInputProps('datum')} />
+        <DateField label="Datum" quickPicks maxDate={todayIso()} {...form.getInputProps('datum')} />
         <TextInput label="Grund" {...form.getInputProps('grund')} />
         <Button type="submit" loading={m.isPending}>Rückgabe buchen</Button>
       </Stack>
@@ -196,7 +196,7 @@ function KorrekturForm({ onClose }: { onClose: () => void }) {
       <Stack>
         <KontoSwitch value={konto} onChange={setKonto} />
         <TextInput label="Betrag (€)" description="Plus erhöht den Stand, Minus verringert ihn" inputMode="decimal" data-autofocus {...form.getInputProps('betrag')} />
-        <DateInput label="Datum" valueFormat="DD.MM.YYYY" maxDate={todayIso()} {...form.getInputProps('datum')} />
+        <DateField label="Datum" quickPicks maxDate={todayIso()} {...form.getInputProps('datum')} />
         <Textarea label="Begründung" minRows={2} {...form.getInputProps('begruendung')} />
         <Button type="submit" loading={m.isPending}>Korrektur buchen</Button>
       </Stack>
@@ -228,7 +228,7 @@ function AnfangsbestandForm({ onClose }: { onClose: () => void }) {
         <Text size="sm" c="dimmed">Der Anfangsbestand wird einmal je Konto beim Start der App gebucht.</Text>
         <KontoSwitch value={konto} onChange={setKonto} />
         <TextInput label="Betrag (€)" inputMode="decimal" data-autofocus {...form.getInputProps('betrag')} />
-        <DateInput label="Stichtag" valueFormat="DD.MM.YYYY" maxDate={todayIso()} {...form.getInputProps('datum')} />
+        <DateField label="Stichtag" quickPicks maxDate={todayIso()} {...form.getInputProps('datum')} />
         <Button type="submit" loading={m.isPending}>Anfangsbestand buchen</Button>
       </Stack>
     </form>
@@ -306,8 +306,8 @@ export function CashPage() {
       <Title order={3} mt="md">Kassenbuch</Title>
       <Group align="flex-end">
         <Select label="Konto" clearable placeholder="Beide" data={[{ value: 'BARKASSE', label: 'Barkasse' }, { value: 'VEREINSKONTO', label: 'Vereinskonto' }]} value={konto} onChange={setKonto} w={160} />
-        <DateInput label="Von" valueFormat="DD.MM.YYYY" clearable value={von} onChange={setVon} w={150} />
-        <DateInput label="Bis" valueFormat="DD.MM.YYYY" clearable value={bis} onChange={setBis} w={150} />
+        <DateField label="Von" compact clearable value={von} onChange={setVon} w={150} />
+        <DateField label="Bis" compact clearable value={bis} onChange={setBis} w={150} />
       </Group>
       {list.isLoading ? (
         <Loading />
